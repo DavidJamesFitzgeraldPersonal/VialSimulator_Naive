@@ -1,0 +1,8 @@
+0. TDD and MVVM would be nice!
+1. Assume that racks are "dumb" they cannot tell the state of a vial
+2. Do you grind before you know outptut vials are available ? Risk in grinding product with nowhere for it to go !
+3. Assume weight of an input vial is known (approximately) as they start with samples in. Can use this to know if sufficient product has been ground.
+4. Assume an input vial can be placed on the balance (though this is not actually stated) which allows for measurement of input product.
+5. Assume that the number of output vials can be divided by input vials such that there is no remainder (O % I = 0).
+6. There is an assumption here that the combinations of target output weight and division factor will all magically work. Not known until an input weight is specified!
+7. Do not allow a Target Output Weight of greater than Balance Error to be specified.
