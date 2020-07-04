@@ -1,3 +1,6 @@
+The point of the simulation seems a little awkward - If my flow chart is correct then the behaviour of the system is very predictable. Added parameters such as balance error 
+and flowrate to simulate errors and timing!
+
 0. TDD and MVVM would be nice!
 1. Assume that racks are "dumb" they cannot tell the state of a vial
 2. Do you grind before you know outptut vials are available ? Risk in grinding product with nowhere for it to go !

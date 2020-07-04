@@ -1,17 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Text;
+﻿using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace LabMan_WPF_VialSimulator_Naive
 {
-    public class Model_SimulationParameters : INotifyPropertyChanged
+    public class Model_SimulationParameters
     {
-        public event PropertyChangedEventHandler PropertyChanged;
 
         #region Constants
         public const uint MIN_INPUT_RACK_CAPACITY        = 1;
-        public const uint MAX_INPUT_RACK_CAPACITY        = 300;
+        public const uint MAX_INPUT_RACK_CAPACITY        = 100;
 
         public const uint MIN_OUTPUT_RACK_CAPACITY       = 1;
         public const uint MAX_OUTPUT_RACK_CAPACITY       = 300;
@@ -23,63 +20,8 @@ namespace LabMan_WPF_VialSimulator_Naive
         public const uint MIN_TARGET_OUTPUT_WEIGHT_mg    = 0;
         public const uint MAX_TARGET_OUTPUT_WEIGHT_mg    = 1000;
 
+        public const uint MIN_FLOW_RATE_mgs              = 0;
         public const uint MAX_FLOW_RATE_mgs              = 10;
-        #endregion
-
-        #region Public Members
-        /// <summary>
-        /// The number of vials the input rack can hold
-        /// </summary>
-        public uint InputRackCapacity
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// The number of vials the output rack can hold
-        /// </summary>
-        public uint OutputRackCapacity
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// 1 input vial will be seperated into OutputDivisionFactor output vials
-        /// </summary>
-        public uint OutputDivisionFactor
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// The target weight for an output vial
-        /// </summary>
-        public float TargetOutputVialWeight_mg
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// The assumed flow rate of the dispenser
-        /// </summary>
-        public float DispenserFlowRate_mgs
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// +/- mg read by balance
-        /// </summary>
-        public float BalanceError_mg
-        {
-            get;
-            set;
-        }
         #endregion
 
         #region Public Methods
@@ -88,12 +30,31 @@ namespace LabMan_WPF_VialSimulator_Naive
         /// </summary>
         /// <param name="inputRackCapacity"></param>
         /// <returns></returns>
-        public bool ParseInputRackCapacity()
+        public static bool ParseInputRackCapacity(int inputRackCapacity)
         {
             // Assume fail
             bool ret = false;
 
-            if((InputRackCapacity <= MAX_INPUT_RACK_CAPACITY) && (InputRackCapacity >= MIN_INPUT_RACK_CAPACITY))
+            if((inputRackCapacity <= MAX_INPUT_RACK_CAPACITY) && (inputRackCapacity >= MIN_INPUT_RACK_CAPACITY))
+            {
+                ret = true;
+            }
+
+            return ret;
+        }
+
+        
+        /// <summary>
+        /// Ensure the specified input rack capacity is within limits
+        /// </summary>
+        /// <param name="outputRackCapacity"></param>
+        /// <returns></returns>
+        public static bool ParseOutputRackCapacity(int outputRackCapacity)
+        {
+            // Assume fail
+            bool ret = false;
+
+            if ((outputRackCapacity <= MAX_OUTPUT_RACK_CAPACITY) && (outputRackCapacity >= MIN_OUTPUT_RACK_CAPACITY))
             {
                 ret = true;
             }
@@ -102,31 +63,19 @@ namespace LabMan_WPF_VialSimulator_Naive
         }
 
         /// <summary>
-        /// Ensure the specified input rack capacity is within limits
+        /// Helper to calculate maximum integer division of input vial possible
         /// </summary>
+        /// <param name="inputRackCapacity"></param>
         /// <param name="outputRackCapacity"></param>
         /// <returns></returns>
-        public bool ParseOutputRackCapacity()
+        public static uint GetMaxOutputDivFactor(int inputRackCapacity, int outputRackCapacity)
         {
-            // Assume fail
-            bool ret = false;
-
-            if ((OutputRackCapacity <= MAX_OUTPUT_RACK_CAPACITY) && (OutputRackCapacity >= MIN_OUTPUT_RACK_CAPACITY))
+            if(0 == inputRackCapacity)
             {
-                ret = true;
+                inputRackCapacity = 1;
             }
 
-            return ret;
-        }
-
-        public uint GetMaxOutputDivFactor()
-        {
-            if(0 == InputRackCapacity)
-            {
-                InputRackCapacity = 1;
-            }
-
-            return (uint)(OutputRackCapacity / InputRackCapacity);
+            return (uint)(outputRackCapacity / inputRackCapacity);
         }
 
         /// <summary>
@@ -138,17 +87,24 @@ namespace LabMan_WPF_VialSimulator_Naive
         /// 0 = set correctly
         /// 1 = out of bounds 
         /// </returns>
-        public int ParseOutputDivisionFactor()
+        public static int ParseOutputDivisionFactor(int outputDivFactor, int inputRackCapacity, int outputRackCapacity)
         {
             // Assume fail
             int ret = 1;
 
-            if((OutputRackCapacity <= InputRackCapacity) && (1 != OutputDivisionFactor))
+            if(outputRackCapacity <= inputRackCapacity)
             {
-                // In this case there are more input vials than output vials so output division factor must be 1.
-                ret = -1;
+                if (outputDivFactor != 1)
+                {
+                    // In this case there are more input vials than output vials so output division factor must be 1.
+                    ret = -1;
+                }
+                else
+                {
+                    ret = 0;
+                }
             }
-            else if ((OutputDivisionFactor >= MIN_OUTPUT_DIV_FACTOR) && (OutputDivisionFactor <= GetMaxOutputDivFactor()))
+            else if ((outputDivFactor >= MIN_OUTPUT_DIV_FACTOR) && (outputDivFactor <= GetMaxOutputDivFactor(inputRackCapacity, outputRackCapacity)))
             {
                 ret = 0;
             }
@@ -164,12 +120,12 @@ namespace LabMan_WPF_VialSimulator_Naive
         /// </summary>
         /// <param name="error"></param>
         /// <returns></returns>
-        public bool ParseBalanceError()
+        public static bool ParseBalanceError(float balError)
         {            
             // Assume fail
             bool ret = false;
 
-            if ((BalanceError_mg >= MIN_BALANCE_ERROR_mg))
+            if ((balError >= MIN_BALANCE_ERROR_mg))
             {
                 ret = true;
             }
@@ -187,16 +143,16 @@ namespace LabMan_WPF_VialSimulator_Naive
         /// 0 = set correctly
         /// 1 = out of bounds 
         ///</returns>
-        public int ParseTargetOutputWeight()
+        public static int ParseTargetOutputWeight(float targetOutput, float balError)
         {
             // Assume fail
             int ret = 1;
 
-            if(TargetOutputVialWeight_mg < BalanceError_mg)
+            if(targetOutput < balError)
             {
                 ret = -1;
             }
-            else if ((TargetOutputVialWeight_mg >= MIN_TARGET_OUTPUT_WEIGHT_mg) && (TargetOutputVialWeight_mg <= MAX_TARGET_OUTPUT_WEIGHT_mg))
+            else if ((targetOutput >= MIN_TARGET_OUTPUT_WEIGHT_mg) && (targetOutput <= MAX_TARGET_OUTPUT_WEIGHT_mg))
             {
                 ret = 0;
             }
@@ -211,17 +167,16 @@ namespace LabMan_WPF_VialSimulator_Naive
         /// </summary>
         /// <param name="targetWeight"></param>
         /// <returns></returns>
-        public bool ParseFlowRate(float flowRate)
+        public static bool ParseFlowRate(int flowRate)
         {
             // Assume fail
             bool ret = false;
-
-            if ((flowRate <= MAX_FLOW_RATE_mgs) && (flowRate >= 0))
+            
+            if ((flowRate <= MAX_FLOW_RATE_mgs) && (flowRate >= MIN_FLOW_RATE_mgs))
             {
-                DispenserFlowRate_mgs = flowRate;
                 ret = true;
             }
-
+            
             return ret;
         }
         #endregion
