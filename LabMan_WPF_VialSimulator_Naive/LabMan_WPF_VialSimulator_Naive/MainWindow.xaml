@@ -101,10 +101,51 @@
         <!--#region Debug Output - RHS of window-->
         <StackPanel Grid.Column="2" Orientation="Vertical">
             <DockPanel VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
-                <TextBlock DockPanel.Dock="Top">Vial Info</TextBlock>
+                <TextBlock DockPanel.Dock="Top">Selected Vial Info</TextBlock>
                 <TextBox Name="TextBlock_VialInfo" Background="#EEEEEE" IsReadOnly="true" DockPanel.Dock ="Bottom" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="auto" Height="100"/>
             </DockPanel>
 
+            <DockPanel VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!--#region Arm Position -->
+                    <TextBlock  Grid.Column="0" Grid.Row="0" Margin="2 0 0 2">Arm Position </TextBlock>
+                    <TextBox    Grid.Column="1" Grid.Row="0" Margin="0 0 0 2" x:Name="TextBox_ArmPosition" IsReadOnly="true"
+                            Text="{Binding Path=Arm.ArmPosition, Mode=TwoWay}"/>
+                    <!--#endregion-->
+                    
+                    <!--#region Arm Status -->
+                    <TextBlock  Grid.Column="0" Grid.Row="1" Margin="2 0 0 2">Arm Status</TextBlock>
+                    <TextBox    Grid.Column="1" Grid.Row="1" Margin="0 0 0 2" x:Name="TextBox_ArmStatus" IsReadOnly="true"
+                            Text="{Binding Path=Arm.ArmStatus, Mode=TwoWay}"/>
+                    <!--#endregion-->
+
+                    <!--#region Grip Position -->
+                    <TextBlock  Grid.Column="0" Grid.Row="2" Margin="2 0 0 2">Grip Position</TextBlock>
+                    <TextBox    Grid.Column="1" Grid.Row="2" Margin="0 0 0 2" x:Name="TextBox_GripPosition" IsReadOnly="true"
+                            Text="{Binding Path=Arm.GripPosition, Mode=TwoWay}"/>
+                    <!--#endregion-->
+
+                    <!--#region Grip Status -->
+                    <TextBlock  Grid.Column="0" Grid.Row="3" Margin="2 0 0 2">Grip Status</TextBlock>
+                    <TextBox    Grid.Column="1" Grid.Row="3" Margin="0 0 0 2" x:Name="TextBox_GripStatus" IsReadOnly="true"
+                            Text="{Binding Path = Arm.GripStatus, Mode=TwoWay}"/>
+                    <!--#endregion-->
+
+                </Grid>
+            </DockPanel>
+                
             <DockPanel VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
                 <TextBlock DockPanel.Dock="Top">Debug Output</TextBlock>
                 <TextBox Name="TextBlock_DebugOutput" Background="#EEEEEE" IsReadOnly="true" DockPanel.Dock ="Bottom" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="auto" Height="400"/>
@@ -114,10 +155,16 @@
         <!--#endregion-->
     </Grid>
 
-    <!--#region Input Rack Template -->
     <Window.Resources>
+        
+        <!--#region Input Rack Template -->
         <DataTemplate x:Key="InputRackTemplate_Level2">
-            <Button Content="{Binding Path=InputRack.Vials.ID, Mode=TwoWay}" Click="Button_Vial_Click" Height="30" Width="30" Margin="1 1 1 1"/>
+            <Button Click="Button_Vial_Click" Height="50" Width="50" Margin="1 1 1 1">
+                <StackPanel>
+                    <TextBlock Text="{Binding Path=ID}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding Path=State}"/>
+                </StackPanel>
+            </Button>
         </DataTemplate>
 
         <DataTemplate x:Key="InputRackTemplate_Level1">
@@ -131,11 +178,16 @@
         </DataTemplate>
         <!--#endregion-->
 
-    <!--#region Output Rack Template -->
+        <!--#region Output Rack Template -->
         <DataTemplate x:Key="OutputRackTemplate_Level2">
-            <Button Content="{Binding Path=OutputRack.Vials.ID, Mode=TwoWay}" Click="Button_Vial_Click" Height="30" Width="30" Margin="1 1 1 1"/>
+            <Button Click="Button_Vial_Click" Height="50" Width="50" Margin="1 1 1 1">
+                <StackPanel>
+                    <TextBlock Text="{Binding Path=ID}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding Path=State}"/>
+                </StackPanel>
+            </Button>
         </DataTemplate>
-
+        
         <DataTemplate x:Key="OutputRackTemplate_Level1">
             <ItemsControl ItemsSource="{Binding}" ItemTemplate="{DynamicResource OutputRackTemplate_Level2}">
                 <ItemsControl.ItemsPanel>

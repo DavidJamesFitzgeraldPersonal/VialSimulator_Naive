@@ -3,38 +3,62 @@ using System.ComponentModel;
 
 namespace LabMan_WPF_VialSimulator_Naive
 {
-    public enum RackState
-    {
-        RACK_STATE_POSN_EMPTY,
-        RACK_STATE_POSN_FULL
-    }
-
-    public enum RackPurpose
-    {
-        RACK_INPUT,
-        RACK_OUTPUT,
-    }
-
     public class ViewModel_Rack : INotifyPropertyChanged
     {
+        #region Events
         public event PropertyChangedEventHandler PropertyChanged = (sender, e) => { };
-
-        public RackPurpose Position
+        protected void OnPropertyChanged(string name)
         {
-            get;
-            set;
+            if (PropertyChanged != null)
+            {
+                PropertyChanged(this, new PropertyChangedEventArgs(name));
+            }
+        }
+        #endregion
+
+        #region Public Properties
+        private Model_Rack.RackPurpose _Position;
+        public Model_Rack.RackPurpose Position
+        {
+            get
+            {
+                return _Position; 
+            }
+            set
+            {
+                if (value == _Position)
+                    return;
+
+                _Position = value;
+                OnPropertyChanged("Position");
+            }
         }
 
-        public List<List<Model_Vial>> Vials
+        private List<List<ViewModel_Vial>> _Vials;
+        public List<List<ViewModel_Vial>> Vials
         {
-            get;
-            set;
-        }
+            get
+            {
+                return _Vials;
+            }
+            set
+            {
+                if (value == _Vials)
+                    return;
 
-        public ViewModel_Rack(List<List<Model_Vial>> vials, RackPurpose position)
+                _Vials = value;
+                OnPropertyChanged("Vials");
+            }
+
+        }
+        #endregion
+
+        #region Constructor
+        public ViewModel_Rack(List<List<ViewModel_Vial>> vials, Model_Rack.RackPurpose position)
         {
             Position = position;
             Vials = vials;
         }
+        #endregion
     }
 }
