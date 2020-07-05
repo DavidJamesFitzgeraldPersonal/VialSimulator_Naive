@@ -72,36 +72,70 @@ namespace LabMan_WPF_VialSimulator_Naive
 
         #region Private Properties
         private uint _Capacity = 0;
+        private uint _RowCount = 0;
+        private uint _ColCount = 0;
         private int _CurrentRow = 0;
         private int _CurrentCol = 0;
+        private float _Weight = 0.0f;
         #endregion
 
         #region Constructor
-        public ViewModel_Rack(List<List<ViewModel_Vial>> vials, Model_Rack.RackPurpose position, uint capacity)
+        public ViewModel_Rack(List<List<ViewModel_Vial>> vials, float weight, Model_Rack.RackPurpose position, uint capacity, uint rowCount, uint colCount)
         {
             Position = position;
             Vials = vials;
 
             _Capacity = capacity;
+            _RowCount = rowCount;
+            _ColCount = colCount;
+            _Weight = weight;
         }
         #endregion
 
         #region Public Methods
         public void ResetRackVars()
         {
-            _CurrentRow = 0;
-            _CurrentCol = 0;
-            IDInUse = GetCurrentID();
+            for (int i = 0; i < _RowCount; i++)
+            {
+                for (int j = 0; j < _ColCount; j++)
+                {
+                    _CurrentRow = i;
+                    _CurrentCol = j;
+                    if (Model_Rack.RackPurpose.INPUT == Position)
+                    {
+                        SetCurrentVialFullCoarse(_Weight);
+                    }
+                    else
+                    {
+                        SetCurrentVialEmpty();
+                    }
+                }
+            }
+
+            SetCurrentID(0);
         }
 
-        public void SetCurrentVialFull()
+        public void SetCurrentVialFullCoarse(float weight)
         {
+            _Vials[_CurrentRow][_CurrentCol].Weight = weight;
+            _Vials[_CurrentRow][_CurrentCol].State = Model_Vial.VialState.COARSE;
+        }
+
+        public void SetCurrentVialFullFine(float weight)
+        {
+            _Vials[_CurrentRow][_CurrentCol].Weight = weight;
             _Vials[_CurrentRow][_CurrentCol].State = Model_Vial.VialState.FINE;
         }
 
         public void SetCurrentVialEmpty()
         {
+            _Vials[_CurrentRow][_CurrentCol].Weight = 0.0f;
             _Vials[_CurrentRow][_CurrentCol].State = Model_Vial.VialState.EMPTY;
+        }
+
+        public float GetCurrentVialWeight()
+        {
+            return _Vials[_CurrentRow][_CurrentCol].Weight;
         }
 
         public bool IsCurrentVialEmpty()
@@ -120,8 +154,8 @@ namespace LabMan_WPF_VialSimulator_Naive
         {
             if(ID <= _Capacity)
             {
-                _CurrentCol = ID % 20;
-                _CurrentRow = ID / 20;
+                _CurrentCol = ID % (int)(_ColCount);
+                _CurrentRow = ID / (int)(_ColCount);
                 _IDInUse = ID;
             }
         }

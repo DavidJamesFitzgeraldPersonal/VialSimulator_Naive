@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom;
 using System.ComponentModel;
 
 namespace LabMan_WPF_VialSimulator_Naive
@@ -130,7 +131,15 @@ namespace LabMan_WPF_VialSimulator_Naive
                 _DispenseFromID = inputID;
                 _DispenseToID = outputID;
 
-                ElapsingTime = (((double)target / (double)rate)*1000.0d);
+                if (0.0 != rate)
+                {
+                    ElapsingTime = (((double)target / (double)rate) * 1000.0d);
+                }
+                else
+                {
+                    // Div by 0!
+                    throw new ArgumentOutOfRangeException(" ViewModel_DispenseStation - Dispense - div by 0");
+                }
             }
 
             if (ElapsingTime >= 0)

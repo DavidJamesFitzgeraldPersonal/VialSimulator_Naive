@@ -5,8 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:LabMan_WPF_VialSimulator_Naive"
         mc:Ignorable="d"
-        Title="Vial Simulator V0.1" Height="400" Width="800"
-        Loaded="Window_Loaded">
+        Title="Vial Simulator V0.1 - D.Fitzgerald" Height="400" Width="800"
+        Loaded="Window_Loaded"
+        WindowState="Maximized"
+        SizeToContent="Manual">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="5*"/>
@@ -35,19 +37,22 @@
 
                 <!--#region Input Rack Capacity-->
                 <TextBlock  Grid.Column="0" Grid.Row="0" Margin="2 0 0 2"> Input Rack Capacity</TextBlock>
-                <TextBox    Grid.Column="1" Grid.Row="0" Margin="0 0 0 2" x:Name="TextBox_InputRackCapacity" IsReadOnly="false"
+                <TextBox    Grid.Column="1" Grid.Row="0" Margin="0 0 0 2" x:Name="TextBox_InputRackCapacity"
+                            IsReadOnly="{Binding Path=IsRunning, Mode=TwoWay}"
                             Text="{Binding Path=SimulationParameters.InputRackCapacity, Mode=OneWay}"/>
                 <!--#endregion-->
 
                 <!--#region Output Rack Capacity-->
                 <TextBlock  Grid.Column="0" Grid.Row="1" Margin="2 0 0 2">Output Rack Capacity</TextBlock>
-                <TextBox    Grid.Column="1" Grid.Row="1" Margin="0 0 0 2" Name="TextBox_OutputRackCapacity" IsReadOnly="false"
+                <TextBox    Grid.Column="1" Grid.Row="1" Margin="0 0 0 2" Name="TextBox_OutputRackCapacity"
+                            IsReadOnly="{Binding Path=IsRunning, Mode=TwoWay}"
                             Text="{Binding Path=SimulationParameters.OutputRackCapacity, Mode=OneWay}"/>
                 <!--#endregion-->
 
                 <!--#region Output Division Factor-->
                 <TextBlock  Grid.Column="0" Grid.Row="2" Margin="2 0 0 2">Output Division Factor</TextBlock>
-                <TextBox    Grid.Column="1" Grid.Row="2" Margin="0 0 0 2" Name="TextBox_OutputDivison" IsReadOnly="false"
+                <TextBox    Grid.Column="1" Grid.Row="2" Margin="0 0 0 2" Name="TextBox_OutputDivison"
+                            IsReadOnly="{Binding Path=IsRunning, Mode=TwoWay}"
                             Text="{Binding Path=SimulationParameters.OutputDivisionFactor, Mode=OneWay}"/> 
                 <!--#endregion-->
 
@@ -60,14 +65,16 @@
                 
                 <!--#region Target Output Weight-->
                 <TextBlock  Grid.Column="0" Grid.Row="4" Margin="2 0 0 2">Target Output Weight</TextBlock>
-                <TextBox    Grid.Column="1" Grid.Row="4" Margin="0 0 0 2" Name="TextBox_OutputWeight" IsReadOnly="false"
+                <TextBox    Grid.Column="1" Grid.Row="4" Margin="0 0 0 2" Name="TextBox_OutputWeight"
+                            IsReadOnly="{Binding Path=IsRunning, Mode=TwoWay}"
                             Text="{Binding Path=SimulationParameters.TargetOutputVialWeight_mg, Mode=OneWay}"/>
                 <TextBlock  Grid.Column="2" Grid.Row="4" Margin="2 0 0 2">mg</TextBlock>
                 <!--#endregion-->
 
                 <!--#region Output Flow Ratet-->
                 <TextBlock  Grid.Column="0" Grid.Row="5" Margin="2 0 0 2">Dispenser Flow Rate</TextBlock>
-                <TextBox    Grid.Column="1" Grid.Row="5" Margin="0 0 0 2" Name="TextBox_DispenserFlowRate" IsReadOnly="false"
+                <TextBox    Grid.Column="1" Grid.Row="5" Margin="0 0 0 2" Name="TextBox_DispenserFlowRate"
+                            IsReadOnly="{Binding Path=IsRunning, Mode=TwoWay}"
                             Text="{Binding Path=SimulationParameters.DispenserFlowRate_mgs, Mode=OneWay}"/>
                 <TextBlock  Grid.Column="2" Grid.Row="5" Margin="2 0 0 2">mg/s</TextBlock>
                 <!--#endregion-->
@@ -76,9 +83,9 @@
 
             <!--#region User Enter Parameters Buttons -->
             <StackPanel Orientation="Horizontal">
-                <Button Margin="100 0 0 0" Name="Button_Generate" Click="Button_Generate_Click" Width="70" Height="30">Generate</Button>
-                <Button Margin="10 0 0 0" Name="Button_Simulate" Click="Button_Simulate_Click" Width="70" Height="30">Simulate</Button>
-                <Button Margin="10 0 0 0" Name="Button_Stop"     Click="Button_Stop_Click"     Width="70" Height="30">Stop</Button>
+                <Button Margin="10 0 0 0" Name="Button_Simulate"    Click="Button_Simulate_Click"   Width="70" Height="30" IsEnabled="{Binding Path=IsStopped}">Simulate</Button>
+                <Button Margin="10 0 0 0" Name="Button_Stop"        Click="Button_Stop_Click"       Width="70" Height="30" IsEnabled="{Binding Path=IsRunning}">Stop</Button>
+                <Button Margin="10 0 0 0" Name="Button_Export"      Click="Button_Export_Click"     Width="70" Height="30" IsEnabled="{Binding Path=CanExport}">Export .csv</Button>
             </StackPanel>
             <!--#endregion-->
 
@@ -172,7 +179,11 @@
                 
             <DockPanel VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
                 <TextBlock DockPanel.Dock="Top">Debug Output</TextBlock>
-                <TextBox Name="TextBlock_DebugOutput" Background="#EEEEEE" IsReadOnly="true" DockPanel.Dock ="Bottom" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="auto" Height="400"/>
+                <TextBox Name="TextBlock_DebugOutput" Background="#EEEEEE" IsReadOnly="true" DockPanel.Dock ="Bottom" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="auto" Height="350"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
+         ScrollViewer.VerticalScrollBarVisibility="Auto"
+         ScrollViewer.CanContentScroll="True"/>
+
             </DockPanel>
         </StackPanel>
 
@@ -185,7 +196,11 @@
         <DataTemplate x:Key="InputRackTemplate_Level2">
             <Button Click="Button_Vial_Click" Height="50" Width="50" Margin="1 1 1 1">
                 <StackPanel>
-                    <TextBlock Text="{Binding Path=ID}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding Path=ID}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Path=Weight}"/>
+                        <TextBlock Text="mg"/>
+                    </StackPanel>
                     <TextBlock Text="{Binding Path=State}"/>
                 </StackPanel>
             </Button>
@@ -204,9 +219,13 @@
 
         <!--#region Output Rack Template -->
         <DataTemplate x:Key="OutputRackTemplate_Level2">
-            <Button Click="Button_Vial_Click" Height="50" Width="50" Margin="1 1 1 1">
+            <Button Click="Button_Vial_Click" Height="50" Width="70" Margin="1 1 1 1">
                 <StackPanel>
-                    <TextBlock Text="{Binding Path=ID}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding Path=ID}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Path=Weight}"/>
+                        <TextBlock Text="mg"/>
+                    </StackPanel>
                     <TextBlock Text="{Binding Path=State}"/>
                 </StackPanel>
             </Button>

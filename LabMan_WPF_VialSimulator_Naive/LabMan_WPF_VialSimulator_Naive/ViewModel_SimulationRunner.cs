@@ -21,6 +21,10 @@ namespace LabMan_WPF_VialSimulator_Naive
 
             // When a single cycle has completed
             STAGE11_MOVE_FROM_DISPENSE_TO_INPUT,
+
+            // Simulation complete
+            STAGE12_SIMULATION_COMPLETE,
+
             STAGE_UNKNOWN
         }
 
@@ -140,7 +144,8 @@ namespace LabMan_WPF_VialSimulator_Naive
                 OnPropertyChanged("DispenseStation");
             }
         }
-        private bool _IsRunning;
+
+        private bool _IsRunning = false;
         public bool IsRunning
         {
             get
@@ -157,6 +162,42 @@ namespace LabMan_WPF_VialSimulator_Naive
                 OnPropertyChanged("IsRunning");
             }
         }
+
+        private bool _IsStopped = true;
+        public bool IsStopped
+        {
+            get
+            {
+                return _IsStopped;
+            }
+
+            set
+            {
+                if (value == _IsStopped)
+                    return;
+
+                _IsStopped = value;
+                OnPropertyChanged("IsStopped");
+            }
+        }
+
+        private bool _CanExport;
+        public bool CanExport
+        {
+            get
+            {
+                return _CanExport;
+            }
+
+            set
+            {
+                if (value == _CanExport)
+                    return;
+
+                _CanExport = value;
+                OnPropertyChanged("CanExport");
+            }
+        }
         #endregion
 
         #region Private Properties
@@ -168,6 +209,8 @@ namespace LabMan_WPF_VialSimulator_Naive
 
         // Used when a new input vial is needed
         private bool _RefreshInput = false;
+
+        private bool _SimulationComplete = false;
 
         private SimulationState _CurrentState;
         private SimulationState _FutureState;
@@ -187,6 +230,13 @@ namespace LabMan_WPF_VialSimulator_Naive
             Arm = new ViewModel_Arm();
             GrindStation = new ViewModel_GrindStation();
             DispenseStation = new ViewModel_DispenseStation();
+
+            // Tie in events when parts of the system have completed their job
+            _Arm.OnArmUpdateEvent += new ViewModel_Arm.OnArmUpdateEventHandler(Arm_OnArmUpdateEventReceived);
+            _Arm.OnGripUpdateEvent += new ViewModel_Arm.OnGripUpdateEventHandler(Arm_OnGripUpdateEventReceived);
+            _GrindStation.OnGrindUpdateEvent += new ViewModel_GrindStation.OnGrindUpdateEventHandler(GrindStation_OnGrindUpdateEventReceived);
+            _DispenseStation.OnDispenseUpdateEvent += new ViewModel_DispenseStation.OnDispenseUpdateEventHandler(DispenseStation_OnDispenseUpdateEventReceived);
+
         }
         #endregion
 
@@ -317,7 +367,7 @@ namespace LabMan_WPF_VialSimulator_Naive
             if (proceed)
             {
                 // Update vial to be ground
-                _InputRack.SetCurrentVialFull();
+                _InputRack.SetCurrentVialFullFine((_SimulationParameters.TargetOutputVialWeight_mg)*_SimulationParameters.OutputDivisionFactor);
 
                 DoProceed();
             }
@@ -338,10 +388,15 @@ namespace LabMan_WPF_VialSimulator_Naive
                 {
                     _InputRack.SetCurrentVialEmpty();
                 }
-                    
-                // Update new vial of material
-                _OutputRack.SetCurrentVialFull();
+                else
+                {
+                    // Update input vial 
+                    _InputRack.SetCurrentVialFullFine(_InputRack.GetCurrentVialWeight() - _SimulationParameters.TargetOutputVialWeight_mg);
+                }
 
+                // Update output vial of material
+                _OutputRack.SetCurrentVialFullFine(_SimulationParameters.TargetOutputVialWeight_mg);
+                               
                 DoProceed();
             }
             RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, message });
@@ -367,8 +422,17 @@ namespace LabMan_WPF_VialSimulator_Naive
             {
                 if(_InputRack.IsCurrentVialEmpty())
                 {
-                    _InputRack.SetCurrentID(InputRack.IDInUse + 1);
-                    _RefreshInput = true;
+                    // Was this the last vial ?
+                    if (_InputRack.IDInUse == (_SimulationParameters.InputRackCapacity-1))
+                    {
+                        _SimulationComplete = true;
+                    }
+                    else
+                    {
+                        _InputRack.SetCurrentID(InputRack.IDInUse + 1);
+                        _RefreshInput = true;
+                    }
+
                     nextStep = SimulationState.STAGE7_MOVE_FROM_OUTPUT_TO_DISPENSE;
                 }
                 else
@@ -379,6 +443,16 @@ namespace LabMan_WPF_VialSimulator_Naive
             }
 
             return nextStep;
+        }
+
+        private void CleanUpSimulation()
+        {
+            _StopReceived = false;
+            _StopInitiated = false;
+
+            IsRunning = false;
+            IsStopped = true;
+            CanExport = true;
         }
 
         /// <summary>
@@ -447,13 +521,16 @@ namespace LabMan_WPF_VialSimulator_Naive
 
                             case SimulationState.STAGE7_MOVE_FROM_OUTPUT_TO_DISPENSE:
                                 _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.DISPENSE_STATION);
-                                if (false == _RefreshInput)
+
+                                if (true == _RefreshInput || true == _SimulationComplete)
                                 {
-                                    _FutureState = SimulationState.STAGE8_DISPENSE_INPUT_TO_OUTPUT;
+                                    // This input vial is empty
+                                    _FutureState = SimulationState.STAGE11_MOVE_FROM_DISPENSE_TO_INPUT;                               
                                 }
                                 else
                                 {
-                                    _FutureState = SimulationState.STAGE11_MOVE_FROM_DISPENSE_TO_INPUT;
+                                    // Carry on throught the cycle
+                                    _FutureState = SimulationState.STAGE8_DISPENSE_INPUT_TO_OUTPUT;
                                 }
                                 break;
 
@@ -475,7 +552,24 @@ namespace LabMan_WPF_VialSimulator_Naive
 
                             case SimulationState.STAGE11_MOVE_FROM_DISPENSE_TO_INPUT:
                                 _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.INPUT_RACK);
-                                _FutureState = SimulationState.STAGE1_PICK_UP_INPUT_VIAL;
+                                if (false == _SimulationComplete)
+                                {
+                                    // Grab the next input vial
+                                    _FutureState = SimulationState.STAGE1_PICK_UP_INPUT_VIAL;
+                                }
+                                else
+                                {
+                                    _FutureState = SimulationState.STAGE12_SIMULATION_COMPLETE;
+                                }
+                                break;
+
+                            case SimulationState.STAGE12_SIMULATION_COMPLETE:
+                                RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, string.Format("\nSimulation Complete!") });
+                                CleanUpSimulation();
+                                break;
+
+                            default:
+                                throw new NotImplementedException();
                                 break;
                         }
 
@@ -491,11 +585,10 @@ namespace LabMan_WPF_VialSimulator_Naive
                     // _AbortTicks is used as an indication of a process currently running in the back ground.
                     // Only stop when it is safe to do so
                     if (_AbortTicks < 0)
-                    {
-                        _IsRunning = false;
-                        _StopReceived = false;
-                        _StopInitiated = false;
+                    {                       
                         RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, string.Format("\nSTOPPED!") });
+
+                        CleanUpSimulation();
                     }
                 }
                 
@@ -517,19 +610,17 @@ namespace LabMan_WPF_VialSimulator_Naive
             InputRack.ResetRackVars();
             OutputRack.ResetRackVars();
 
-            // Tie in events when parts of the system have completed their job
-            _Arm.OnArmUpdateEvent += new ViewModel_Arm.OnArmUpdateEventHandler(Arm_OnArmUpdateEventReceived);
-            _Arm.OnGripUpdateEvent += new ViewModel_Arm.OnGripUpdateEventHandler(Arm_OnGripUpdateEventReceived);
-            _GrindStation.OnGrindUpdateEvent += new ViewModel_GrindStation.OnGrindUpdateEventHandler(GrindStation_OnGrindUpdateEventReceived);
-            _DispenseStation.OnDispenseUpdateEvent += new ViewModel_DispenseStation.OnDispenseUpdateEventHandler(DispenseStation_OnDispenseUpdateEventReceived);
-
             _AbortTicks = -1;
 
             _SimulationTimer.Stop();
             _SimulationTimer.Interval = 1;
             _SimulationTimer.Start();
 
+            _SimulationComplete = false;
+
             IsRunning = true;
+            IsStopped = false;
+            CanExport = false;
         }
         #endregion
     }

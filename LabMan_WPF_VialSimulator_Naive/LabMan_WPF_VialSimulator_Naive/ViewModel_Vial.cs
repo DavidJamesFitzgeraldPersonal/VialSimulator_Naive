@@ -15,8 +15,8 @@ namespace LabMan_WPF_VialSimulator_Naive
         #endregion
 
         #region Public Properties
-        private int _ID;
-        public int ID
+        private uint _ID;
+        public uint ID
         {
             get
             {
@@ -65,16 +65,42 @@ namespace LabMan_WPF_VialSimulator_Naive
                 OnPropertyChanged("Position");
             }
         }
-        public object DataContext { get; internal set; }
 
+        private float _Weight;
+        public float Weight
+        {
+            get
+            {
+                return _Weight;
+            }
+            set
+            {
+                if (value == _Weight)
+                    return;
+
+                _Weight = value;
+                OnPropertyChanged("Weight");
+            }
+        }
+        public object DataContext { get; internal set; }
         #endregion
         
         #region Constructor
-        public ViewModel_Vial(int id, Model_Vial.VialState state, Model_Vial.VialPurpose posn)
+        public ViewModel_Vial(uint id, Model_Vial.VialState state, Model_Vial.VialPurpose posn)
         {
             ID = id;
             State = state;
             Position = posn;
+        }
+        #endregion
+
+        #region Public Mehods
+        public void SetWeight(float weight)
+        {
+            if(weight >= 0.0f)
+            {
+                _Weight = weight;
+            }
         }
         #endregion
     }

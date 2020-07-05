@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 
 namespace LabMan_WPF_VialSimulator_Naive
@@ -25,6 +26,11 @@ namespace LabMan_WPF_VialSimulator_Naive
         }
         #endregion
 
+        private void UpdateDebugOutput(string message)
+        {
+            TextBlock_DebugOutput.AppendText(message);
+            TextBlock_DebugOutput.ScrollToEnd();
+        }
         #region View Sanity Checks
         /// <summary>
         /// Check validity of input rack count, inform user if not correct
@@ -41,18 +47,18 @@ namespace LabMan_WPF_VialSimulator_Naive
 
                     _VM.SimulationParameters.InputRackCapacity = (uint)value;
                     success = true;
-                    TextBlock_DebugOutput.Text += string.Format("\n Input Rack Capacity set to {0}", _VM.SimulationParameters.InputRackCapacity);
+                    UpdateDebugOutput(string.Format("\n Input Rack Capacity set to {0}", _VM.SimulationParameters.InputRackCapacity));
                 }
                 else
                 {
-                    TextBlock_DebugOutput.Text += string.Format("\nERROR! Input Rack Capacity must be between {0} and {1}", 
+                    UpdateDebugOutput(string.Format("\nERROR! Input Rack Capacity must be between {0} and {1}", 
                         Model_SimulationParameters.MIN_INPUT_RACK_CAPACITY,
-                        Model_SimulationParameters.MAX_INPUT_RACK_CAPACITY);
+                        Model_SimulationParameters.MAX_INPUT_RACK_CAPACITY));
                 }
             }
             catch (FormatException)
             {
-                TextBlock_DebugOutput.Text += "\nERROR! Input Rack Capacity must be an integer!";
+                UpdateDebugOutput("\nERROR! Input Rack Capacity must be an integer!");
             }
             return success;
         }
@@ -71,18 +77,18 @@ namespace LabMan_WPF_VialSimulator_Naive
                 {
                     _VM.SimulationParameters.OutputRackCapacity = (uint)value;
                     success = true;
-                    TextBlock_DebugOutput.Text += string.Format("\n Output Rack Capacity set to {0}", _VM.SimulationParameters.OutputRackCapacity);
+                    UpdateDebugOutput(string.Format("\n Output Rack Capacity set to {0}", _VM.SimulationParameters.OutputRackCapacity));
                 }
                 else
                 {
-                    TextBlock_DebugOutput.Text += string.Format("\nERROR! Output Rack Capacity must be between {0} and {1}",
+                    UpdateDebugOutput(string.Format("\nERROR! Output Rack Capacity must be between {0} and {1}",
                         Model_SimulationParameters.MIN_OUTPUT_RACK_CAPACITY,
-                        Model_SimulationParameters.MAX_OUTPUT_RACK_CAPACITY);
+                        Model_SimulationParameters.MAX_OUTPUT_RACK_CAPACITY));
                 }
             }
             catch (FormatException)
             {
-                TextBlock_DebugOutput.Text += "\nERROR! Output Rack Capacity must be an integer!";
+                UpdateDebugOutput("\nERROR! Output Rack Capacity must be an integer!");
             }
             return success;
         }
@@ -103,26 +109,26 @@ namespace LabMan_WPF_VialSimulator_Naive
                 {
                     _VM.SimulationParameters.OutputDivisionFactor = (uint)value;
                     success = true;
-                    TextBlock_DebugOutput.Text += string.Format("\n Output Division Factor set to {0}", _VM.SimulationParameters.OutputDivisionFactor);
+                    UpdateDebugOutput(string.Format("\n Output Division Factor set to {0}", _VM.SimulationParameters.OutputDivisionFactor));
                 }
                 else if(1 == result)
                 {
-                    TextBlock_DebugOutput.Text += string.Format("\nERROR! Output Division Factor must be an integer between {0} and {1}",
+                    UpdateDebugOutput(string.Format("\nERROR! Output Division Factor must be an integer between {0} and {1}",
                         Model_SimulationParameters.MIN_OUTPUT_DIV_FACTOR,
-                        Model_SimulationParameters.GetMaxOutputDivFactor((int)_VM.SimulationParameters.InputRackCapacity, (int)_VM.SimulationParameters.OutputRackCapacity));
+                        Model_SimulationParameters.GetMaxOutputDivFactor((int)_VM.SimulationParameters.InputRackCapacity, (int)_VM.SimulationParameters.OutputRackCapacity)));
                 }
                 else if(-1 == result)
                 {
-                    TextBlock_DebugOutput.Text += string.Format("\nERROR! Output Rack Capacity is less than Input Capacity.\nDivision Factor must be 1!");
+                    UpdateDebugOutput(string.Format("\nERROR! Output Rack Capacity is less than Input Capacity.\nDivision Factor must be 1!"));
                 }
                 else
                 {
-                    TextBlock_DebugOutput.Text += "\nERROR! Output Division Factor unknown error!";
+                    UpdateDebugOutput("\nERROR! Output Division Factor unknown error!");
                 }
             }
             catch (FormatException)
             {
-                TextBlock_DebugOutput.Text += "\nERROR! Output Division Factor must be an integer!";
+                UpdateDebugOutput("\nERROR! Output Division Factor must be an integer!");
             }
             return success;
         }
@@ -137,17 +143,17 @@ namespace LabMan_WPF_VialSimulator_Naive
                 {
                     _VM.SimulationParameters.BalanceError_mg = value;
                     success = true;
-                    TextBlock_DebugOutput.Text += string.Format("\n Balance Error set to {0} mg", _VM.SimulationParameters.BalanceError_mg);
+                    UpdateDebugOutput(string.Format("\n Balance Error set to {0} mg", _VM.SimulationParameters.BalanceError_mg));
                 }
                 else
                 {
-                    TextBlock_DebugOutput.Text += string.Format("\nERROR! Balance Error must be greater than {0} mg",
-                        Model_SimulationParameters.MIN_BALANCE_ERROR_mg);
+                    UpdateDebugOutput(string.Format("\nERROR! Balance Error must be greater than {0} mg",
+                        Model_SimulationParameters.MIN_BALANCE_ERROR_mg));
                 }
             }
             catch (FormatException)
             {
-                TextBlock_DebugOutput.Text += "\nERROR! Balance Error must be a real number!";
+                UpdateDebugOutput("\nERROR! Balance Error must be a real number!");
             }
             return success;
         }
@@ -168,27 +174,27 @@ namespace LabMan_WPF_VialSimulator_Naive
                 {
                     _VM.SimulationParameters.TargetOutputVialWeight_mg = value;
                     success = true;
-                    TextBlock_DebugOutput.Text += string.Format("\n Target Output Weight set to {0} mg", _VM.SimulationParameters.TargetOutputVialWeight_mg);
+                    UpdateDebugOutput(string.Format("\n Target Output Weight set to {0} mg", _VM.SimulationParameters.TargetOutputVialWeight_mg));
                 }
                 else if (1 == result)
                 {
-                    TextBlock_DebugOutput.Text += string.Format("\nERROR! Target Output Weight must be between {0} and {1} mg",
+                    UpdateDebugOutput(string.Format("\nERROR! Target Output Weight must be between {0} and {1} mg",
                         Model_SimulationParameters.MIN_TARGET_OUTPUT_WEIGHT_mg,
-                        _VM.SimulationParameters.BalanceError_mg);
+                        _VM.SimulationParameters.BalanceError_mg));
                 }
                 else if(-1 == result)
                 {
-                    TextBlock_DebugOutput.Text += string.Format("\nERROR! Target Output Weight must be greater than the specified balance error of {0} mg",
-                        _VM.SimulationParameters.BalanceError_mg);
+                    UpdateDebugOutput(string.Format("\nERROR! Target Output Weight must be greater than the specified balance error of {0} mg",
+                        _VM.SimulationParameters.BalanceError_mg));
                 }
                 else
                 {
-                    TextBlock_DebugOutput.Text += "\nERROR! Target Output Weight unknown error!";
+                    UpdateDebugOutput("\nERROR! Target Output Weight unknown error!");
                 }
             }
             catch (FormatException)
             {
-                TextBlock_DebugOutput.Text += "\nERROR! Target Output Weight must be a real number!";
+                UpdateDebugOutput("\nERROR! Target Output Weight must be a real number!");
             }
             return success;
         }
@@ -207,18 +213,18 @@ namespace LabMan_WPF_VialSimulator_Naive
                 {
                     _VM.SimulationParameters.DispenserFlowRate_mgs = value;
                     success = true;
-                    TextBlock_DebugOutput.Text += string.Format("\n Balance Error set to {0} mg", _VM.SimulationParameters.DispenserFlowRate_mgs);
+                    UpdateDebugOutput(string.Format("\n Balance Error set to {0} mg", _VM.SimulationParameters.DispenserFlowRate_mgs));
                 }
                 else
                 {
-                    TextBlock_DebugOutput.Text += string.Format("\nERROR! Flow Rate must be between {0} and {1} mg/s",
+                    UpdateDebugOutput(string.Format("\nERROR! Flow Rate must be between {0} and {1} mg/s",
                         Model_SimulationParameters.MIN_FLOW_RATE_mgs,
-                        Model_SimulationParameters.MAX_FLOW_RATE_mgs);
+                        Model_SimulationParameters.MAX_FLOW_RATE_mgs));
                 }
             }
             catch (FormatException)
             {
-                TextBlock_DebugOutput.Text += "\nERROR! Balance Error must be a real number!";
+                UpdateDebugOutput("\nERROR! Balance Error must be a real number!");
             }
             return success;
         }
@@ -246,7 +252,7 @@ namespace LabMan_WPF_VialSimulator_Naive
         {
             try
             {
-                TextBlock_DebugOutput.Dispatcher.Invoke(new Action(() => TextBlock_DebugOutput.Text += messageToAppend));
+                this.Dispatcher.Invoke(new Action(() => UpdateDebugOutput(messageToAppend)));
             }
             catch(Exception ex)
             {
@@ -264,51 +270,23 @@ namespace LabMan_WPF_VialSimulator_Naive
             AppendDebugOutput(message);
         }
 
-        /// <summary>
-        /// Locks the simulation parameter inputs on start of simulations
-        /// </summary>
-        private void FreezeSimulationParameters()
-        {
-            TextBox_InputRackCapacity.Text = _VM.SimulationParameters.InputRackCapacity.ToString();
-            TextBox_InputRackCapacity.IsReadOnly = true;
-            TextBox_InputRackCapacity.Background = Brushes.LightGray;
-
-            TextBox_OutputRackCapacity.Text = _VM.SimulationParameters.OutputRackCapacity.ToString();
-            TextBox_OutputRackCapacity.IsReadOnly = true;
-            TextBox_OutputRackCapacity.Background = Brushes.LightGray;
-
-            TextBox_OutputDivison.Text = _VM.SimulationParameters.OutputDivisionFactor.ToString();
-            TextBox_OutputDivison.IsReadOnly = true;
-            TextBox_OutputDivison.Background = Brushes.LightGray;
-
-            TextBox_BalanceError.Text = _VM.SimulationParameters.BalanceError_mg.ToString();
-            TextBox_BalanceError.IsReadOnly = true;
-            TextBox_BalanceError.Background = Brushes.LightGray;
-
-            TextBox_OutputWeight.Text = _VM.SimulationParameters.TargetOutputVialWeight_mg.ToString();
-            TextBox_OutputWeight.IsReadOnly = true;
-            TextBox_OutputWeight.Background = Brushes.LightGray;
-
-            TextBox_DispenserFlowRate.Text = _VM.SimulationParameters.DispenserFlowRate_mgs.ToString();
-            TextBox_DispenserFlowRate.IsReadOnly = true;
-            TextBox_DispenserFlowRate.Background = Brushes.LightGray;
-        }
         private void GenerateRacks()
         {
             #region Input Rack
             List<List<ViewModel_Vial>> InputVials = new List<List<ViewModel_Vial>>();
 
-            int RowCount = (int)(_VM.SimulationParameters.InputRackCapacity / 20);
-            int Rem = (int)(_VM.SimulationParameters.InputRackCapacity % 20);
+            uint ColCount = 20; // Nominal
+            uint RowCount = _VM.SimulationParameters.InputRackCapacity / ColCount;
+            uint Rem = _VM.SimulationParameters.InputRackCapacity % ColCount;
             int i = 0;
 
             for(i = 0; i < RowCount; i++)
             {
                 InputVials.Add(new List<ViewModel_Vial>());
 
-                for (int j = 0; j < 20; j++)
+                for (int j = 0; j < ColCount; j++)
                 {
-                    ViewModel_Vial vial = new ViewModel_Vial(((i * (20)) + j), Model_Vial.VialState.COARSE, Model_Vial.VialPurpose.INPUT);
+                    ViewModel_Vial vial = new ViewModel_Vial((uint)((i * (ColCount)) + j), Model_Vial.VialState.COARSE, Model_Vial.VialPurpose.INPUT);
                     InputVials[i].Add(vial);
                 }
             }
@@ -316,11 +294,12 @@ namespace LabMan_WPF_VialSimulator_Naive
             InputVials.Add(new List<ViewModel_Vial>());
             for (int k = 0; k < Rem; k++)
             {
-                ViewModel_Vial vial = new ViewModel_Vial(((i * (20)) + k), Model_Vial.VialState.COARSE, Model_Vial.VialPurpose.INPUT);
+                ViewModel_Vial vial = new ViewModel_Vial((uint)((i * (ColCount)) + k), Model_Vial.VialState.COARSE, Model_Vial.VialPurpose.INPUT);
                 InputVials[i].Add(vial);
             }
 
-            _VM.InputRack = new ViewModel_Rack(InputVials, Model_Rack.RackPurpose.INPUT, _VM.SimulationParameters.InputRackCapacity);
+            _VM.InputRack = new ViewModel_Rack(InputVials, _VM.SimulationParameters.TargetOutputVialWeight_mg * _VM.SimulationParameters.OutputDivisionFactor,
+                                                Model_Rack.RackPurpose.INPUT, _VM.SimulationParameters.InputRackCapacity, RowCount, ColCount);
 
             RackTemplate_Input.ItemsSource = _VM.InputRack.Vials;
             #endregion
@@ -328,8 +307,8 @@ namespace LabMan_WPF_VialSimulator_Naive
             #region Output Racks
             List<List<ViewModel_Vial>> OutputVials = new List<List<ViewModel_Vial>>();
 
-            RowCount = (int)(_VM.SimulationParameters.OutputRackCapacity / 20);
-            Rem = (int)(_VM.SimulationParameters.OutputRackCapacity % 20);
+            RowCount = _VM.SimulationParameters.OutputRackCapacity / ColCount;
+            Rem = _VM.SimulationParameters.OutputRackCapacity % ColCount;
             i = 0;
 
             for (i = 0; i < RowCount; i++)
@@ -338,7 +317,7 @@ namespace LabMan_WPF_VialSimulator_Naive
 
                 for (int j = 0; j < 20; j++)
                 {
-                    ViewModel_Vial vial = new ViewModel_Vial(((i * (20)) + j), Model_Vial.VialState.EMPTY, Model_Vial.VialPurpose.OUTPUT);
+                    ViewModel_Vial vial = new ViewModel_Vial((uint)((i * (ColCount)) + j), Model_Vial.VialState.EMPTY, Model_Vial.VialPurpose.OUTPUT);
                     OutputVials[i].Add(vial);
                 }
             }
@@ -346,17 +325,19 @@ namespace LabMan_WPF_VialSimulator_Naive
             OutputVials.Add(new List<ViewModel_Vial>());
             for (int k = 0; k < Rem; k++)
             {
-                ViewModel_Vial vial = new ViewModel_Vial(((i * (20)) + k), Model_Vial.VialState.EMPTY, Model_Vial.VialPurpose.OUTPUT);
+                ViewModel_Vial vial = new ViewModel_Vial((uint)((i * (ColCount)) + k), Model_Vial.VialState.EMPTY, Model_Vial.VialPurpose.OUTPUT);
                 OutputVials[i].Add(vial);
             }
 
-            _VM.OutputRack = new ViewModel_Rack(OutputVials, Model_Rack.RackPurpose.OUTPUT, _VM.SimulationParameters.OutputRackCapacity);
+            _VM.OutputRack = new ViewModel_Rack(OutputVials, 0.0f, Model_Rack.RackPurpose.OUTPUT, _VM.SimulationParameters.OutputRackCapacity, RowCount, ColCount);
 
             RackTemplate_Output.ItemsSource = _VM.OutputRack.Vials;
             #endregion
         }
-        private void DoGenerateClick()
+        private bool DoGenerateClick()
         {
+            bool ret = false;
+
             // Parse input parameters for validity
             if (
                     SetInputRackCapacity() &&
@@ -367,18 +348,22 @@ namespace LabMan_WPF_VialSimulator_Naive
                     SetDispenserFlowRate()
                 )
             {
-                TextBlock_DebugOutput.Text += "\n..Done!";
+                UpdateDebugOutput("\n..Done!");
 
                 //TODO CalculateTimeForSimulation();
 
-                TextBlock_DebugOutput.Text += "\nGenerating Racks..";
+                UpdateDebugOutput("\nGenerating Racks..");
                 GenerateRacks();
-                TextBlock_DebugOutput.Text += "\n..Done!";
+                UpdateDebugOutput("\n..Done!");
+                ret = true;
             }
+
+            return ret;
         }
         private void Button_Generate_Click(object sender, RoutedEventArgs e)
         {
-            TextBlock_DebugOutput.Text = "Simulate selected. Checking input parameters..";
+            TextBlock_DebugOutput.Clear();
+            UpdateDebugOutput("Simulate selected. Checking input parameters..");
 
             DoGenerateClick();         
         }
@@ -386,9 +371,10 @@ namespace LabMan_WPF_VialSimulator_Naive
         {
             //TODO - If a vial is selected and the process starts, the contents of this window will not be updated!
 
-            TextBlock_VialInfo.Text = string.Format("Vial {0} from {1} rack.\nContents = {2}",
+            TextBlock_VialInfo.Text = string.Format("Vial ID{0} from {1} rack.\nContents = {2}mg of {3}",
             selected.ID,
             selected.Position   == Model_Vial.VialPurpose.INPUT ? "Input" : "Output",
+            selected.Weight,
             selected.State      == Model_Vial.VialState.COARSE ? "Coarse" :
             (selected.State     == Model_Vial.VialState.FINE ? "Ground" : "Empty"));
         }
@@ -398,24 +384,46 @@ namespace LabMan_WPF_VialSimulator_Naive
 
             DoButtonVialClick(selected);
         }
+
+        private void DoSimulateClick()
+        {
+            if (DoGenerateClick())
+            {
+                _VM.BeginSimulation();
+            }
+            else
+            {
+                UpdateDebugOutput("\nSimulation cannot be started - check above for incorrect parameters");
+            }
+        }
         private void Button_Simulate_Click(object sender, RoutedEventArgs e)
         {
-            // Incase the user has overridden some settings but not selected simulate..
-            FreezeSimulationParameters();
-
-            _VM.BeginSimulation();
-
+            DoSimulateClick();
         }
-        private void Button_Stop_Click(object sender, RoutedEventArgs e)
+        
+        private void DoStop()
         {
-            if(_VM.IsRunning)
+            if (_VM.IsRunning)
             {
                 _VM.StopSimulation();
             }
             else
             {
-                TextBlock_DebugOutput.Text += "\nSimulation cannot be stopped - not yet running!";
+                UpdateDebugOutput("\nSimulation cannot be stopped - not yet running!");
             }
+        }
+        private void Button_Stop_Click(object sender, RoutedEventArgs e)
+        {
+            DoStop();
+        }
+
+        private void DoExport()
+        {
+            throw new NotImplementedException();
+        }
+        private void Button_Export_Click(object sender, RoutedEventArgs e)
+        {
+            DoExport();
         }
         #endregion
     }
