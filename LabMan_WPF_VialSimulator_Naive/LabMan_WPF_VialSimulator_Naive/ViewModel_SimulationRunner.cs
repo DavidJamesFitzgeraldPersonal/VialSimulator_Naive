@@ -15,6 +15,8 @@ namespace LabMan_WPF_VialSimulator_Naive
             STAGE5_MOVE_FROM_DISPENSE_TO_OUTPUT,
             STAGE6_MOVE_FROM_OUTPUT_TO_DISPENSE,
             STAGE7_TRANSFER_FROM_INPUT_TO_OUTPUT,
+            STAGE8_TRANSFER_FROM_DISPENSE_TO_OUTPUT, // TODO Can this be rolled into STAGE5_MOVE_FROM_DISPENSE_TO_OUTPUT
+            STAGE9_TRANSFER_FROM_OUTPUT_TO_DISPENSE, // TODO tie into STAGE6_MOVE_FROM_OUTPUT_TO_DISPENSE 
             STAGE_UNKNOWN
         }
 
@@ -118,6 +120,22 @@ namespace LabMan_WPF_VialSimulator_Naive
             }
         }
 
+        private ViewModel_DispenseStation _DispenseStation;
+        public ViewModel_DispenseStation DispenseStation
+        {
+            get
+            {
+                return _DispenseStation;
+            }
+            set
+            {
+                if (value == _DispenseStation)
+                    return;
+
+                _DispenseStation = value;
+                OnPropertyChanged("DispenseStation");
+            }
+        }
         public bool IsRunning
         {
             get;
@@ -145,6 +163,7 @@ namespace LabMan_WPF_VialSimulator_Naive
 
             Arm = new ViewModel_Arm();
             GrindStation = new ViewModel_GrindStation();
+            DispenseStation = new ViewModel_DispenseStation();
         }
         #endregion
 
@@ -157,6 +176,7 @@ namespace LabMan_WPF_VialSimulator_Naive
         private void _Simulationtimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
             _SimulationTimer.Stop();
+            _SimulationTimer.Enabled = false;
 
             if (false == _semaphore)
             {
@@ -166,6 +186,7 @@ namespace LabMan_WPF_VialSimulator_Naive
             if (false == _StopReceived)
             {
                 // If not trying to stop, start again
+                _SimulationTimer.Enabled = true;
                 _SimulationTimer.Start();
             }
             else
@@ -187,7 +208,7 @@ namespace LabMan_WPF_VialSimulator_Naive
                     }
                     else
                     {
-                        syncer.BeginInvoke(d, args);  // cleanup omitted
+                        syncer.BeginInvoke(d, args);
                     }
                 }
             }
@@ -212,6 +233,17 @@ namespace LabMan_WPF_VialSimulator_Naive
             {
                 // Update vial to be ground
                 _InputRack.GroundVial();
+
+                DoProceed(message);
+            }
+        }
+        private void DispenseStation_OnDispenseUpdateEventReceived(ViewModel_DispenseStation sender, bool proceed, string message)
+        {
+            if (proceed)
+            {
+                // Update new vial of material
+                _OutputRack.GroundVial();
+
                 DoProceed(message);
             }
         }
@@ -289,8 +321,21 @@ namespace LabMan_WPF_VialSimulator_Naive
                             break;
 
                         case SimulationState.STAGE7_TRANSFER_FROM_INPUT_TO_OUTPUT:
+                            _AbortTicks = _DispenseStation.Dispense(_InputRack.IDInUse, _OutputRack.IDInUse,
+                                _SimulationParameters.TargetOutputVialWeight_mg, _SimulationParameters.DispenserFlowRate_mgs);
+                            _FutureState = SimulationState.STAGE8_TRANSFER_FROM_DISPENSE_TO_OUTPUT;
                             break;
 
+                        case SimulationState.STAGE8_TRANSFER_FROM_DISPENSE_TO_OUTPUT:
+                            _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.OUTPUT_RACK);
+                            _FutureState = SimulationState.STAGE9_TRANSFER_FROM_OUTPUT_TO_DISPENSE;
+                            break;
+                    }
+
+                    // Have new state
+                    if(_AbortTicks > 0)
+                    {
+                        _AbortTicks = (int)(_AbortTicks * 1.5);
                     }
                 }
                 
@@ -312,8 +357,10 @@ namespace LabMan_WPF_VialSimulator_Naive
             InputRack.ResetRackVars();
             OutputRack.ResetRackVars();
 
+            // Tie in events when parts of the system have completed their job
             _Arm.OnArmUpdateEvent += new ViewModel_Arm.OnArmUpdateEventHandler(Arm_OnArmUpdateEventReceived);
             _GrindStation.OnGrindUpdateEvent += new ViewModel_GrindStation.OnGrindUpdateEventHandler(GrindStation_OnGrindUpdateEventReceived);
+            _DispenseStation.OnDispenseUpdateEvent += new ViewModel_DispenseStation.OnDispenseUpdateEventHandler(DispenseStation_OnDispenseUpdateEventReceived);
 
             _AbortTicks = -1;
 

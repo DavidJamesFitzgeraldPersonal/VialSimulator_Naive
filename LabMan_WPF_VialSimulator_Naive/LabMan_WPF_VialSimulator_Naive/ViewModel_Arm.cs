@@ -150,7 +150,7 @@ namespace LabMan_WPF_VialSimulator_Naive
                     }
                     else
                     {
-                        syncer.BeginInvoke(d, args);  // cleanup omitted
+                        syncer.BeginInvoke(d, args);
                     }
                 }
             }
