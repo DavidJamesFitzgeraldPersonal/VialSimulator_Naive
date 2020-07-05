@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
 
 namespace LabMan_WPF_VialSimulator_Naive
 {
@@ -13,6 +14,9 @@ namespace LabMan_WPF_VialSimulator_Naive
                 PropertyChanged(this, new PropertyChangedEventArgs(name));
             }
         }
+
+        public delegate void OnArmUpdateEventHandler(ViewModel_Arm sender, bool success, string messageArgs);
+        public event OnArmUpdateEventHandler OnArmUpdateEvent;
         #endregion
 
         #region Private Members
@@ -104,6 +108,23 @@ namespace LabMan_WPF_VialSimulator_Naive
                 OnPropertyChanged("GripPosition");
             }
         }
+
+        private Model_Arm.GripPosition _FutureGripPosition;
+        public Model_Arm.GripPosition FutureGripPosition
+        {
+            get
+            {
+                return _FutureGripPosition;
+            }
+            set
+            {
+                if (value == _FutureGripPosition)
+                    return;
+
+                _FutureGripPosition = value;
+                OnPropertyChanged("FutureGripPosition");
+            }
+        }
         #endregion
 
         #region Constructor
@@ -116,6 +137,25 @@ namespace LabMan_WPF_VialSimulator_Naive
         #endregion
 
         #region Private Events
+        private void RaiseEventOnTopLevel(Delegate theEvent, object[] args)
+        {
+            if (theEvent != null)
+            {
+                foreach (Delegate d in theEvent.GetInvocationList())
+                {
+                    ISynchronizeInvoke syncer = d.Target as ISynchronizeInvoke;
+                    if (syncer == null)
+                    {
+                        d.DynamicInvoke(args);
+                    }
+                    else
+                    {
+                        syncer.BeginInvoke(d, args);  // cleanup omitted
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Fires when the arm movement has simulated and the appropriate time has elapsed
         /// </summary>
@@ -126,12 +166,18 @@ namespace LabMan_WPF_VialSimulator_Naive
             _ArmTimer.Stop();
             _ArmTimer.Enabled = false;
 
-            // Arm has finished its movement 
+            // Arm and Grip have finished movement 
             ArmPosition = FutureArmPosition;
             ArmStatus = Model_Arm.ArmStatus.HALT;
+            GripPosition = FutureGripPosition;
+            GripStatus = Model_Arm.GripStatus.HALT;
 
-            // Clear future arm position
+            // Clear future positions
             FutureArmPosition = Model_Arm.ArmPosition.UNKNOWN;
+            FutureGripPosition = Model_Arm.GripPosition.UNKNOWN;
+
+            // Notify top level state machine of success
+            RaiseEventOnTopLevel(OnArmUpdateEvent, new object[] { this, true, string.Format("\nAt {0}: Arm is at {1} and Grip is {2}", e.SignalTime, ArmPosition, GripPosition) });
         }
         #endregion
 
@@ -145,7 +191,7 @@ namespace LabMan_WPF_VialSimulator_Naive
             GripPosition = Model_Arm.GripPosition.OPEN;
         }
 
-        private void BeginArmMovement(int timeForMovement)
+        private void BeginArmMovement(int timeForMovement, Model_Arm.ArmPosition newPosn)
         {
             // Should only get here with a positive time and the _ArmTimer not running
             // Double check the arm and grip are not already moving
@@ -160,102 +206,163 @@ namespace LabMan_WPF_VialSimulator_Naive
                 // Set the current arm position to unknown as we simulate that we cannot know where it is
                 ArmPosition = Model_Arm.ArmPosition.UNKNOWN;
 
+                // Do not change grip position
+                FutureGripPosition = GripPosition;
+
+                // Future arm position set
+                FutureArmPosition = newPosn;
+
                 _ArmTimer.Interval = timeForMovement;
                 _ArmTimer.Enabled = true;
                 _ArmTimer.Start();
             }
         }
 
-        private int MoveArmToNewPosition(Model_Arm.ArmPosition newPosn)
+        private void BeginGripMovement(int timeForGripAction, Model_Arm.GripPosition newPosn, Model_Arm.GripStatus newStatus)
         {
-            int ElapsingTime = -1;
-
-            switch (ArmPosition)
+            // Should only get here with a positive time and the _ArmTimer not running
+            // Double check the arm and grip are not already moving
+            if ((timeForGripAction >= 0) &&
+                (Model_Arm.ArmStatus.HALT == ArmStatus) &&
+                (Model_Arm.GripStatus.HALT == GripStatus) &&
+                (false == _ArmTimer.Enabled))
             {
-                case Model_Arm.ArmPosition.INPUT_RACK:
-                    // From the Input Rack position the arm can only move to the Grind Station
-                    if (Model_Arm.ArmPosition.GRIND_STATION == newPosn && 
-                        Model_Arm.ArmStatus.HALT == ArmStatus &&
-                        Model_Arm.GripPosition.CLOSED == GripPosition &&
-                        Model_Arm.GripStatus.HALT == GripStatus)
-                    {
-                        ElapsingTime = (int)Model_Arm.TIME_FROM_INPUT_TO_GRIND_ms;
-                    }
-                    break;
+                // Set the grip status and next state
+                GripPosition = Model_Arm.GripPosition.UNKNOWN;
+                GripStatus = newStatus;
+                FutureGripPosition = newPosn;
 
-                case Model_Arm.ArmPosition.GRIND_STATION:
-                    // From the Grind Station position the arm can only move to the Dispense Station
-                    if (Model_Arm.ArmPosition.DISPENSE_STATION == newPosn &&
-                        Model_Arm.ArmStatus.HALT == ArmStatus &&
-                        Model_Arm.GripPosition.CLOSED == GripPosition &&
-                        Model_Arm.GripStatus.HALT == GripStatus)
-                    {
-                        ElapsingTime = (int)Model_Arm.TIME_FROM_GRIND_TO_DISPENSE_ms;
-                    }
-                    break;
+                // Do not overwrite arm position
+                FutureArmPosition = ArmPosition;
 
-                case Model_Arm.ArmPosition.DISPENSE_STATION:
-                    // From the Dispense Station position the arm can move to Input or Output Racks
-
-                    // Must be carrying "empty" input vial back to input rack
-                    if (Model_Arm.ArmPosition.INPUT_RACK == newPosn &&
-                        Model_Arm.ArmStatus.HALT == ArmStatus &&
-                        Model_Arm.GripPosition.CLOSED == GripPosition &&
-                        Model_Arm.GripStatus.HALT == GripStatus)
-                    {
-                        ElapsingTime = (int)Model_Arm.TIME_FROM_DISPENSE_TO_INPUT_ms;
-                    }
-                    // Must be carrying "full" output vial back to output rack
-                    else if (Model_Arm.ArmPosition.OUTPUT_RACK == newPosn &&
-                        Model_Arm.ArmStatus.HALT == ArmStatus &&
-                        Model_Arm.GripPosition.CLOSED == GripPosition &&
-                        Model_Arm.GripStatus.HALT == GripStatus)
-                    {
-                        ElapsingTime = (int)Model_Arm.TIME_FROM_DISPENSE_TO_OUTPUT_ms;
-                    }
-                    else
-                    {
-                        // N/A
-                    }
-                    break;
-
-                case Model_Arm.ArmPosition.OUTPUT_RACK:
-                    // From the Output Rack position the arm can only move to the Dispense station
-                    if (Model_Arm.ArmPosition.DISPENSE_STATION == newPosn &&
-                        Model_Arm.ArmStatus.HALT == ArmStatus &&
-                        Model_Arm.GripPosition.CLOSED == GripPosition &&
-                        Model_Arm.GripStatus.HALT == GripStatus)
-                    {
-                        ElapsingTime = (int)Model_Arm.TIME_FROM_OUTPUT_TO_DISPENSE_ms;
-                    }
-                    break;
-
-                case Model_Arm.ArmPosition.UNKNOWN:
-                    break;
-
+                _ArmTimer.Interval = timeForGripAction;
+                _ArmTimer.Enabled = true;
+                _ArmTimer.Start();
             }
-
-            if (ElapsingTime >= 0)
-            {
-                FutureArmPosition = newPosn;
-                BeginArmMovement(ElapsingTime);
-            }
-
-            return ElapsingTime;
         }
         #endregion
 
         #region Public Methods
-        public void ToggleGrip()
+        public int MoveArmToNewPosition(Model_Arm.ArmPosition newPosn)
         {
-            if(Model_Arm.GripStatus.CLOSING == GripStatus)
+            int ElapsingTime = -1;
+
+            if (newPosn == ArmPosition)
             {
-                GripStatus = Model_Arm.GripStatus.OPENING;
+                ElapsingTime = 0;
             }
             else
             {
-                GripStatus = Model_Arm.GripStatus.CLOSING;
+                switch (ArmPosition)
+                {
+                    case Model_Arm.ArmPosition.INPUT_RACK:
+                        // From the Input Rack position the arm can only move to the Grind Station
+                        if (Model_Arm.ArmPosition.GRIND_STATION == newPosn &&
+                            Model_Arm.ArmStatus.HALT == ArmStatus &&
+                            Model_Arm.GripPosition.CLOSED == GripPosition &&
+                            Model_Arm.GripStatus.HALT == GripStatus)
+                        {
+                            ElapsingTime = (int)Model_Arm.TIME_FROM_INPUT_TO_GRIND_ms;
+                        }
+                        break;
+
+                    case Model_Arm.ArmPosition.GRIND_STATION:
+                        // From the Grind Station position the arm can only move to the Dispense Station
+                        if (Model_Arm.ArmPosition.DISPENSE_STATION == newPosn &&
+                            Model_Arm.ArmStatus.HALT == ArmStatus &&
+                            Model_Arm.GripPosition.CLOSED == GripPosition &&
+                            Model_Arm.GripStatus.HALT == GripStatus)
+                        {
+                            ElapsingTime = (int)Model_Arm.TIME_FROM_GRIND_TO_DISPENSE_ms;
+                        }
+                        break;
+
+                    case Model_Arm.ArmPosition.DISPENSE_STATION:
+                        // From the Dispense Station position the arm can move to Input or Output Racks
+
+                        // Must be carrying "empty" input vial back to input rack
+                        if (Model_Arm.ArmPosition.INPUT_RACK == newPosn &&
+                            Model_Arm.ArmStatus.HALT == ArmStatus &&
+                            Model_Arm.GripPosition.CLOSED == GripPosition &&
+                            Model_Arm.GripStatus.HALT == GripStatus)
+                        {
+                            ElapsingTime = (int)Model_Arm.TIME_FROM_DISPENSE_TO_INPUT_ms;
+                        }
+                        // Must be carrying "full" output vial back to output rack
+                        else if (Model_Arm.ArmPosition.OUTPUT_RACK == newPosn &&
+                            Model_Arm.ArmStatus.HALT == ArmStatus &&
+                            Model_Arm.GripPosition.CLOSED == GripPosition &&
+                            Model_Arm.GripStatus.HALT == GripStatus)
+                        {
+                            ElapsingTime = (int)Model_Arm.TIME_FROM_DISPENSE_TO_OUTPUT_ms;
+                        }
+                        else
+                        {
+                            // N/A
+                        }
+                        break;
+
+                    case Model_Arm.ArmPosition.OUTPUT_RACK:
+                        // From the Output Rack position the arm can only move to the Dispense station
+                        if (Model_Arm.ArmPosition.DISPENSE_STATION == newPosn &&
+                            Model_Arm.ArmStatus.HALT == ArmStatus &&
+                            Model_Arm.GripPosition.CLOSED == GripPosition &&
+                            Model_Arm.GripStatus.HALT == GripStatus)
+                        {
+                            ElapsingTime = (int)Model_Arm.TIME_FROM_OUTPUT_TO_DISPENSE_ms;
+                        }
+                        break;
+
+                    case Model_Arm.ArmPosition.UNKNOWN:
+                        break;
+
+                }
             }
+
+            if (ElapsingTime >= 0)
+            {
+                BeginArmMovement(ElapsingTime, newPosn);
+            }
+
+            return ElapsingTime;
+        }
+
+        public int GrabVialFromCurrentRack(uint index)
+        {
+            int ElapsingTime = -1;
+
+            if ((ArmPosition == Model_Arm.ArmPosition.INPUT_RACK || ArmPosition == Model_Arm.ArmPosition.OUTPUT_RACK) &&
+                GripStatus == Model_Arm.GripStatus.HALT &&
+                GripPosition == Model_Arm.GripPosition.OPEN)
+            {
+                ElapsingTime = Model_Arm.TIME_TO_GRAB_VIAL_ms;
+            }
+
+            if (ElapsingTime >= 0)
+            {
+                BeginGripMovement(ElapsingTime, Model_Arm.GripPosition.CLOSED, Model_Arm.GripStatus.CLOSING);
+            }
+
+            return ElapsingTime;
+        }
+
+        public int ReleseVialToCurrentRack(uint index)
+        {
+            int ElapsingTime = -1;
+
+            if ((ArmPosition == Model_Arm.ArmPosition.INPUT_RACK || ArmPosition == Model_Arm.ArmPosition.OUTPUT_RACK) &&
+                GripStatus == Model_Arm.GripStatus.HALT &&
+                GripPosition == Model_Arm.GripPosition.CLOSED)
+            {
+                ElapsingTime = Model_Arm.TIME_TO_RELEASE_VIAL_ms;
+            }
+
+            if (ElapsingTime >= 0)
+            {
+                BeginGripMovement(ElapsingTime, Model_Arm.GripPosition.OPEN, Model_Arm.GripStatus.OPENING);
+            }
+
+            return ElapsingTime;
         }
         #endregion
     }

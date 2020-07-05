@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 
 namespace LabMan_WPF_VialSimulator_Naive
@@ -49,8 +50,9 @@ namespace LabMan_WPF_VialSimulator_Naive
                 _Vials = value;
                 OnPropertyChanged("Vials");
             }
-
         }
+
+        public uint IndexInUse = 0;
         #endregion
 
         #region Constructor
@@ -58,6 +60,13 @@ namespace LabMan_WPF_VialSimulator_Naive
         {
             Position = position;
             Vials = vials;
+        }
+        #endregion
+
+        #region Public Methods
+        public void ResetRackVars()
+        {
+            IndexInUse = 0;
         }
         #endregion
     }

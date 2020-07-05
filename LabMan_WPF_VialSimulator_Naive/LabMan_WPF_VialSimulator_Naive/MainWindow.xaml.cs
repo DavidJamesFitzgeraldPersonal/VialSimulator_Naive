@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Media;
 
 namespace LabMan_WPF_VialSimulator_Naive
 {
@@ -17,6 +18,8 @@ namespace LabMan_WPF_VialSimulator_Naive
         {
             InitializeComponent();
             _VM = new ViewModel_SimulationRunner();
+
+            _VM.OnSimulationUpdateEvent += Simulation_OnSimulationUpdateEventReceived;
 
             _VM.Arm = new ViewModel_Arm();
 
@@ -224,7 +227,7 @@ namespace LabMan_WPF_VialSimulator_Naive
 
         #endregion
 
-        #region UI Events
+        #region UI Events and Methods
         /// <summary>
         /// On load simulate a button click to setup a test with default properties
         /// </summary>
@@ -233,11 +236,65 @@ namespace LabMan_WPF_VialSimulator_Naive
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // Simulate a button click to load a deafault test setup
-            DoSimulateClick();
-
-            _VM.BeginSimulation();
+            DoGenerateClick();
         }
 
+        /// <summary>
+        /// Update the debug output in a thread safe manner allowing events raised from simulation runner
+        /// to be written to the output.
+        /// </summary>
+        /// <param name="messageToAppend"></param>
+        private void AppendDebugOutput(string messageToAppend)
+        {
+            try
+            {
+                TextBlock_DebugOutput.Dispatcher.Invoke(new Action(() => TextBlock_DebugOutput.Text += messageToAppend));
+            }
+            catch(Exception ex)
+            {
+                // This is really really hacky TODO
+            }
+        }
+
+        /// <summary>
+        /// Raised when the simulation runner state is updated
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="message"></param>
+        private void Simulation_OnSimulationUpdateEventReceived(ViewModel_SimulationRunner sender, string message)
+        {
+            AppendDebugOutput(message);
+        }
+
+        /// <summary>
+        /// Locks the simulation parameter inputs on start of simulations
+        /// </summary>
+        private void FreezeSimulationParameters()
+        {
+            TextBox_InputRackCapacity.Text = _VM.SimulationParameters.InputRackCapacity.ToString();
+            TextBox_InputRackCapacity.IsReadOnly = true;
+            TextBox_InputRackCapacity.Background = Brushes.LightGray;
+
+            TextBox_OutputRackCapacity.Text = _VM.SimulationParameters.OutputRackCapacity.ToString();
+            TextBox_OutputRackCapacity.IsReadOnly = true;
+            TextBox_OutputRackCapacity.Background = Brushes.LightGray;
+
+            TextBox_OutputDivison.Text = _VM.SimulationParameters.OutputDivisionFactor.ToString();
+            TextBox_OutputDivison.IsReadOnly = true;
+            TextBox_OutputDivison.Background = Brushes.LightGray;
+
+            TextBox_BalanceError.Text = _VM.SimulationParameters.BalanceError_mg.ToString();
+            TextBox_BalanceError.IsReadOnly = true;
+            TextBox_BalanceError.Background = Brushes.LightGray;
+
+            TextBox_OutputWeight.Text = _VM.SimulationParameters.TargetOutputVialWeight_mg.ToString();
+            TextBox_OutputWeight.IsReadOnly = true;
+            TextBox_OutputWeight.Background = Brushes.LightGray;
+
+            TextBox_DispenserFlowRate.Text = _VM.SimulationParameters.DispenserFlowRate_mgs.ToString();
+            TextBox_DispenserFlowRate.IsReadOnly = true;
+            TextBox_DispenserFlowRate.Background = Brushes.LightGray;
+        }
         private void GeneratetRacks()
         {
             #region Input Rack
@@ -300,8 +357,7 @@ namespace LabMan_WPF_VialSimulator_Naive
             RackTemplate_Output.ItemsSource = _VM.OutputRack.Vials;
             #endregion
         }
-
-        private void DoSimulateClick()
+        private void DoGenerateClick()
         {
             // Parse input parameters for validity
             if (
@@ -322,13 +378,12 @@ namespace LabMan_WPF_VialSimulator_Naive
                 TextBlock_DebugOutput.Text += "\n..Done!";
             }
         }
-        private void Button_Simulate_Click(object sender, RoutedEventArgs e)
+        private void Button_Generate_Click(object sender, RoutedEventArgs e)
         {
             TextBlock_DebugOutput.Text = "Simulate selected. Checking input parameters..";
 
-            DoSimulateClick();         
+            DoGenerateClick();         
         }
-
         private void DoButtonVialClick(ViewModel_Vial selected)
         {
             TextBlock_VialInfo.Text = string.Format("Vial {0} from {1} rack.\nContents = {2}",
@@ -337,12 +392,30 @@ namespace LabMan_WPF_VialSimulator_Naive
             selected.State      == Model_Vial.VialState.COARSE ? "Coarse" :
             (selected.State     == Model_Vial.VialState.FINE ? "Ground" : "Empty"));
         }
-
         private void Button_Vial_Click(object sender, RoutedEventArgs e)
         {
             ViewModel_Vial selected = (ViewModel_Vial)((sender as FrameworkElement).DataContext);
 
             DoButtonVialClick(selected);
+        }
+        private void Button_Simulate_Click(object sender, RoutedEventArgs e)
+        {
+            // Incase the user has overridden some settings but not selected simulate..
+            FreezeSimulationParameters();
+
+            _VM.BeginSimulation();
+
+        }
+        private void Button_Stop_Click(object sender, RoutedEventArgs e)
+        {
+            if(_VM.IsRunning)
+            {
+                _VM.StopSimulation();
+            }
+            else
+            {
+                TextBlock_DebugOutput.Text += "\nSimulation cannot be stopped - not yet running!";
+            }
         }
         #endregion
     }

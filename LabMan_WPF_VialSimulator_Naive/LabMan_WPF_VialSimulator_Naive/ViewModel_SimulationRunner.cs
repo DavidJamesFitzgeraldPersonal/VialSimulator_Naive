@@ -1,9 +1,18 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
 
 namespace LabMan_WPF_VialSimulator_Naive
 {
     public class ViewModel_SimulationRunner : INotifyPropertyChanged
     {
+        private enum SimulationState
+        {
+            STAGE1_PICK_UP_INPUT_VIAL,
+            STAGE2_MOVE_FROM_INPUT_TO_GRIND,
+            STAGE3_GRIND_INPUT,
+            STAGE_UNKNOWN
+        }
+
         #region Events
         public event PropertyChangedEventHandler PropertyChanged = (sender, e) => { };
         protected void OnPropertyChanged(string name)
@@ -13,10 +22,9 @@ namespace LabMan_WPF_VialSimulator_Naive
                 PropertyChanged(this, new PropertyChangedEventArgs(name));
             }
         }
-        #endregion
 
-        #region Private Members
-        private System.Timers.Timer _SimulationTimer = new System.Timers.Timer();
+        public delegate void OnSimulationUpdateEventHandler(ViewModel_SimulationRunner sender, string messageArgs);
+        public event OnSimulationUpdateEventHandler OnSimulationUpdateEvent;
         #endregion
 
         #region Public Properties
@@ -87,6 +95,22 @@ namespace LabMan_WPF_VialSimulator_Naive
                 OnPropertyChanged("Arm");
             }
         }
+
+        public bool IsRunning
+        {
+            get;
+        }
+        #endregion
+
+        #region Private Properties
+        // Has a stop command been received
+        private bool _StopReceived = false;
+
+        private SimulationState _CurrentState;
+        private SimulationState _FutureState;
+
+        private int _AbortTicks = 0;
+        private System.Timers.Timer _SimulationTimer = new System.Timers.Timer();
         #endregion
 
         #region Constructor
@@ -107,18 +131,111 @@ namespace LabMan_WPF_VialSimulator_Naive
         /// <param name="e"></param>
         private void _Simulationtimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
-            _SimulationTimer.Stop();
-            Arm.ToggleGrip();
-            _SimulationTimer.Start();
+            RunSimulationStateMachine();
+        }
+
+        private void RaiseEventOnTopLevel(Delegate theEvent, object[] args)
+        {
+            if (theEvent != null)
+            {
+                foreach (Delegate d in theEvent.GetInvocationList())
+                {
+                    ISynchronizeInvoke syncer = d.Target as ISynchronizeInvoke;
+                    if (syncer == null)
+                    {
+                        d.DynamicInvoke(args);
+                    }
+                    else
+                    {
+                        syncer.BeginInvoke(d, args);  // cleanup omitted
+                    }
+                }
+            }
+        }
+
+        private void Arm_OnArmUpdateEventReceived(ViewModel_Arm sender, bool proceed, string message)
+        {
+            if(true == proceed)
+            {
+                UpdateTopState();
+            }
+
+            RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, message });
+        }
+        #endregion
+
+        #region Private Methods
+        private void UpdateTopState()
+        {
+            _CurrentState = _FutureState;
+            _FutureState = SimulationState.STAGE_UNKNOWN;
+            _AbortTicks = 0;
+        }
+        private void RunSimulationStateMachine()
+        {
+            // If there is a future state then decrement abort ticks, if this ever reaches 0
+            //then something has gone drastically wrong!
+            if (_FutureState != SimulationState.STAGE_UNKNOWN)
+            {
+                if (_AbortTicks > 0)
+                {
+                    _AbortTicks = _AbortTicks - (int)(_SimulationTimer.Interval);
+                }
+            }
+
+            if (_AbortTicks >= 0)
+            {
+                if (false == _StopReceived && _FutureState == SimulationState.STAGE_UNKNOWN)
+                {
+                    switch (_CurrentState)
+                    {
+                        case SimulationState.STAGE1_PICK_UP_INPUT_VIAL:
+                            _AbortTicks = _Arm.GrabVialFromCurrentRack(InputRack.IndexInUse);
+                            _FutureState = SimulationState.STAGE2_MOVE_FROM_INPUT_TO_GRIND;
+                            break;
+
+                        case SimulationState.STAGE2_MOVE_FROM_INPUT_TO_GRIND:
+                            _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.GRIND_STATION);
+                            _FutureState = SimulationState.STAGE3_GRIND_INPUT;
+                            break;
+                    }
+
+                    // Add some error margin (25%) to the abort ticks!
+                    if (_FutureState != SimulationState.STAGE_UNKNOWN)
+                    {
+                        _AbortTicks = (int)(_AbortTicks * 1.25);
+                    }
+                }
+                else
+                {
+
+                }
+            }
+            else
+            {
+                RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, string.Format("\nERROR moving from state {0} to state {1}", _CurrentState, _FutureState) });
+            }
         }
         #endregion
 
         #region Public Methods
+        public void StopSimulation()
+        {
+            _StopReceived = true;
+        }
         public void BeginSimulation()
         {
             _SimulationTimer.Stop();
-            _SimulationTimer.Interval = 5000;
+            _SimulationTimer.Interval = 1;
             _SimulationTimer.Start();
+
+            _CurrentState = SimulationState.STAGE1_PICK_UP_INPUT_VIAL;
+            _FutureState = SimulationState.STAGE_UNKNOWN;
+
+            InputRack.ResetRackVars();
+            OutputRack.ResetRackVars();
+
+            _Arm.OnArmUpdateEvent += new ViewModel_Arm.OnArmUpdateEventHandler(Arm_OnArmUpdateEventReceived);
         }
         #endregion
     }
