@@ -86,7 +86,7 @@ namespace LabMan_WPF_VialSimulator_Naive
             GrindStatus = Model_GrindStation.GrindStatus.HALT;
 
             // Notify top level state machine of success
-            RaiseEventOnTopLevel(OnGrindUpdateEvent, new object[] { this, true, string.Format("\nAt {0}: Ground Input Vial ID {1}", e.SignalTime, _GrindingID) });
+            RaiseEventOnTopLevel(OnGrindUpdateEvent, new object[] { this, true, string.Format("\nAt {0}: Ground Input Vial ID{1}", e.SignalTime, _GrindingID) });
         }
         #endregion
 
@@ -111,7 +111,7 @@ namespace LabMan_WPF_VialSimulator_Naive
                 _GrindTimer.Start();
 
                 // Notify top level state machine of success
-                RaiseEventOnTopLevel(OnGrindUpdateEvent, new object[] { this, true, string.Format("\nBegin grind of Input Vial ID {0}", _GrindingID) });
+                RaiseEventOnTopLevel(OnGrindUpdateEvent, new object[] { this, false, string.Format(". Begin grind of Input Vial ID{0}", _GrindingID) });
             }
         }
         #endregion

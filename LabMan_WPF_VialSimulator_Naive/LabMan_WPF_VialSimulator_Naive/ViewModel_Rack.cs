@@ -51,18 +51,38 @@ namespace LabMan_WPF_VialSimulator_Naive
                 OnPropertyChanged("Vials");
             }
         }
-        public int IDInUse = 0;
+        
+        private int _IDInUse;
+        public int IDInUse
+        {
+            get
+            {
+                return _IDInUse;
+            }
+            set
+            {
+                if (value == _IDInUse)
+                    return;
+
+                _IDInUse = value;
+                OnPropertyChanged("IDInUse");
+            }
+        }
         #endregion
 
-
+        #region Private Properties
+        private uint _Capacity = 0;
         private int _CurrentRow = 0;
         private int _CurrentCol = 0;
+        #endregion
 
         #region Constructor
-        public ViewModel_Rack(List<List<ViewModel_Vial>> vials, Model_Rack.RackPurpose position)
+        public ViewModel_Rack(List<List<ViewModel_Vial>> vials, Model_Rack.RackPurpose position, uint capacity)
         {
             Position = position;
             Vials = vials;
+
+            _Capacity = capacity;
         }
         #endregion
 
@@ -74,15 +94,42 @@ namespace LabMan_WPF_VialSimulator_Naive
             IDInUse = GetCurrentID();
         }
 
-        public void GroundVial()
+        public void SetCurrentVialFull()
         {
             _Vials[_CurrentRow][_CurrentCol].State = Model_Vial.VialState.FINE;
+        }
+
+        public void SetCurrentVialEmpty()
+        {
+            _Vials[_CurrentRow][_CurrentCol].State = Model_Vial.VialState.EMPTY;
+        }
+
+        public bool IsCurrentVialEmpty()
+        {
+            bool ret = false;
+
+            if(Model_Vial.VialState.EMPTY == _Vials[_CurrentRow][_CurrentCol].State)
+            {
+                ret = true;
+            }
+
+            return ret;
+        }
+
+        public void SetCurrentID(int ID)
+        {
+            if(ID <= _Capacity)
+            {
+                _CurrentCol = ID % 20;
+                _CurrentRow = ID / 20;
+                _IDInUse = ID;
+            }
         }
         #endregion
 
         private int GetCurrentID()
         {
-            return _Vials[_CurrentRow][_CurrentCol].ID;
+            return _IDInUse;
         }
     }
 }

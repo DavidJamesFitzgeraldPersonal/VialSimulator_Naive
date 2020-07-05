@@ -308,7 +308,7 @@ namespace LabMan_WPF_VialSimulator_Naive
 
                 for (int j = 0; j < 20; j++)
                 {
-                    ViewModel_Vial vial = new ViewModel_Vial(1+((i * (20)) + j), Model_Vial.VialState.COARSE, Model_Vial.VialPurpose.INPUT);
+                    ViewModel_Vial vial = new ViewModel_Vial(((i * (20)) + j), Model_Vial.VialState.COARSE, Model_Vial.VialPurpose.INPUT);
                     InputVials[i].Add(vial);
                 }
             }
@@ -316,11 +316,11 @@ namespace LabMan_WPF_VialSimulator_Naive
             InputVials.Add(new List<ViewModel_Vial>());
             for (int k = 0; k < Rem; k++)
             {
-                ViewModel_Vial vial = new ViewModel_Vial(1+((i * (20)) + k), Model_Vial.VialState.COARSE, Model_Vial.VialPurpose.INPUT);
+                ViewModel_Vial vial = new ViewModel_Vial(((i * (20)) + k), Model_Vial.VialState.COARSE, Model_Vial.VialPurpose.INPUT);
                 InputVials[i].Add(vial);
             }
 
-            _VM.InputRack = new ViewModel_Rack(InputVials, Model_Rack.RackPurpose.INPUT);
+            _VM.InputRack = new ViewModel_Rack(InputVials, Model_Rack.RackPurpose.INPUT, _VM.SimulationParameters.InputRackCapacity);
 
             RackTemplate_Input.ItemsSource = _VM.InputRack.Vials;
             #endregion
@@ -338,7 +338,7 @@ namespace LabMan_WPF_VialSimulator_Naive
 
                 for (int j = 0; j < 20; j++)
                 {
-                    ViewModel_Vial vial = new ViewModel_Vial(1+((i * (20)) + j), Model_Vial.VialState.EMPTY, Model_Vial.VialPurpose.OUTPUT);
+                    ViewModel_Vial vial = new ViewModel_Vial(((i * (20)) + j), Model_Vial.VialState.EMPTY, Model_Vial.VialPurpose.OUTPUT);
                     OutputVials[i].Add(vial);
                 }
             }
@@ -346,11 +346,11 @@ namespace LabMan_WPF_VialSimulator_Naive
             OutputVials.Add(new List<ViewModel_Vial>());
             for (int k = 0; k < Rem; k++)
             {
-                ViewModel_Vial vial = new ViewModel_Vial(1+((i * (20)) + k), Model_Vial.VialState.EMPTY, Model_Vial.VialPurpose.OUTPUT);
+                ViewModel_Vial vial = new ViewModel_Vial(((i * (20)) + k), Model_Vial.VialState.EMPTY, Model_Vial.VialPurpose.OUTPUT);
                 OutputVials[i].Add(vial);
             }
 
-            _VM.OutputRack = new ViewModel_Rack(OutputVials, Model_Rack.RackPurpose.OUTPUT);
+            _VM.OutputRack = new ViewModel_Rack(OutputVials, Model_Rack.RackPurpose.OUTPUT, _VM.SimulationParameters.OutputRackCapacity);
 
             RackTemplate_Output.ItemsSource = _VM.OutputRack.Vials;
             #endregion
@@ -384,6 +384,8 @@ namespace LabMan_WPF_VialSimulator_Naive
         }
         private void DoButtonVialClick(ViewModel_Vial selected)
         {
+            //TODO - If a vial is selected and the process starts, the contents of this window will not be updated!
+
             TextBlock_VialInfo.Text = string.Format("Vial {0} from {1} rack.\nContents = {2}",
             selected.ID,
             selected.Position   == Model_Vial.VialPurpose.INPUT ? "Input" : "Output",

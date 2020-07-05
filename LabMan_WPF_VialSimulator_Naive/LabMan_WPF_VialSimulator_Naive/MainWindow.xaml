@@ -120,30 +120,51 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
                     <!--#region Arm Position -->
                     <TextBlock  Grid.Column="0" Grid.Row="0" Margin="2 0 0 2">Arm Position </TextBlock>
                     <TextBox    Grid.Column="1" Grid.Row="0" Margin="0 0 0 2" x:Name="TextBox_ArmPosition" IsReadOnly="true"
-                            Text="{Binding Path=Arm.ArmPosition, Mode=TwoWay}"/>
+                            Text="{Binding Path = Arm.ArmPosition, Mode=TwoWay}"/>
                     <!--#endregion-->
                     
                     <!--#region Arm Status -->
                     <TextBlock  Grid.Column="0" Grid.Row="1" Margin="2 0 0 2">Arm Status</TextBlock>
                     <TextBox    Grid.Column="1" Grid.Row="1" Margin="0 0 0 2" x:Name="TextBox_ArmStatus" IsReadOnly="true"
-                            Text="{Binding Path=Arm.ArmStatus, Mode=TwoWay}"/>
+                            Text="{Binding Path = Arm.ArmStatus, Mode=TwoWay}"/>
                     <!--#endregion-->
 
                     <!--#region Grip Position -->
                     <TextBlock  Grid.Column="0" Grid.Row="2" Margin="2 0 0 2">Grip Position</TextBlock>
                     <TextBox    Grid.Column="1" Grid.Row="2" Margin="0 0 0 2" x:Name="TextBox_GripPosition" IsReadOnly="true"
-                            Text="{Binding Path=Arm.GripPosition, Mode=TwoWay}"/>
+                            Text="{Binding Path = Arm.GripPosition, Mode=TwoWay}"/>
                     <!--#endregion-->
 
                     <!--#region Grip Status -->
                     <TextBlock  Grid.Column="0" Grid.Row="3" Margin="2 0 0 2">Grip Status</TextBlock>
                     <TextBox    Grid.Column="1" Grid.Row="3" Margin="0 0 0 2" x:Name="TextBox_GripStatus" IsReadOnly="true"
                             Text="{Binding Path = Arm.GripStatus, Mode=TwoWay}"/>
+                    <!--#endregion-->
+
+                    <!--#region Held Status -->
+                    <TextBlock  Grid.Column="0" Grid.Row="4" Margin="2 0 0 2">Currently Held</TextBlock>
+                    <TextBox    Grid.Column="1" Grid.Row="4" Margin="0 0 0 2" x:Name="TextBox_HoldingStatus" IsReadOnly="true"
+                            Text="{Binding Path = Arm.HoldingStatus, Mode=TwoWay}"/>
+                    <!--#endregion-->
+                    
+                    <!--#region Grind Status -->
+                    <TextBlock  Grid.Column="0" Grid.Row="5" Margin="2 0 0 2">Grind Status</TextBlock>
+                    <TextBox    Grid.Column="1" Grid.Row="5" Margin="0 0 0 2" x:Name="TextBox_GrindStatus" IsReadOnly="true"
+                            Text="{Binding Path = GrindStation.GrindStatus, Mode=TwoWay}"/>
+                    <!--#endregion-->
+
+                    <!--#region Dispenser Status -->
+                    <TextBlock  Grid.Column="0" Grid.Row="6" Margin="2 0 0 2">Dispenser Status</TextBlock>
+                    <TextBox    Grid.Column="1" Grid.Row="6" Margin="0 0 0 2" x:Name="TextBox_DispenerStatus" IsReadOnly="true"
+                            Text="{Binding Path = DispenseStation.DispenserStatus, Mode=TwoWay}"/>
                     <!--#endregion-->
 
                 </Grid>

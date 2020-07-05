@@ -83,11 +83,11 @@ namespace LabMan_WPF_VialSimulator_Naive
             _DispenseTimer.Stop();
             _DispenseTimer.Enabled = false;
 
-            // Dispenser has dispensed !
-            DispenserStatus = Model_DispenseStation.DispenserStatus.HALT;
-
             // Notify top level state machine of success
             RaiseEventOnTopLevel(OnDispenseUpdateEvent, new object[] { this, true, string.Format("\nAt {0}: Dispensed from Input Vial ID{1} to Output Vial ID{2}", e.SignalTime, _DispenseFromID, _DispenseToID) });
+
+            // Reset dispenser
+            SetRest();
         }
         #endregion
 
@@ -104,8 +104,6 @@ namespace LabMan_WPF_VialSimulator_Naive
             // Should only get here with a positive time and the _Dispensetimer not running
             // Needs valid vial IDs
             if ((timeForDispense >= 0) &&
-                (0 != _DispenseFromID)&&
-                (0 != _DispenseToID)&&
                 (Model_DispenseStation.DispenserStatus.HALT == DispenserStatus) &&
                 (false == _DispenseTimer.Enabled))
             {
@@ -116,7 +114,7 @@ namespace LabMan_WPF_VialSimulator_Naive
                 _DispenseTimer.Start();
 
                 // Notify top level state machine of success
-                RaiseEventOnTopLevel(OnDispenseUpdateEvent, new object[] { this, true, string.Format("\nBegin dispense from Input Vial ID{0} to Output Vial ID{0}", _DispenseFromID, _DispenseToID) });
+                RaiseEventOnTopLevel(OnDispenseUpdateEvent, new object[] { this, false, string.Format(". Begin dispense from Input Vial ID{0} to Output Vial ID{1}", _DispenseFromID, _DispenseToID) });
             }
         }
         #endregion

@@ -13,10 +13,14 @@ namespace LabMan_WPF_VialSimulator_Naive
             STAGE3_GRIND_INPUT,
             STAGE4_MOVE_FROM_GRIND_TO_DISPENSE,
             STAGE5_MOVE_FROM_DISPENSE_TO_OUTPUT,
-            STAGE6_MOVE_FROM_OUTPUT_TO_DISPENSE,
-            STAGE7_TRANSFER_FROM_INPUT_TO_OUTPUT,
-            STAGE8_TRANSFER_FROM_DISPENSE_TO_OUTPUT, // TODO Can this be rolled into STAGE5_MOVE_FROM_DISPENSE_TO_OUTPUT
-            STAGE9_TRANSFER_FROM_OUTPUT_TO_DISPENSE, // TODO tie into STAGE6_MOVE_FROM_OUTPUT_TO_DISPENSE 
+            STAGE6_PICK_UP_OUTPUT_VIAL,
+            STAGE7_MOVE_FROM_OUTPUT_TO_DISPENSE,
+            STAGE8_DISPENSE_INPUT_TO_OUTPUT,
+            STAGE9_TRANSFER_FROM_DISPENSE_TO_OUTPUT,
+            STAGE10_PLACE_VIAL_AT_OUTPUT,
+
+            // When a single cycle has completed
+            STAGE11_MOVE_FROM_DISPENSE_TO_INPUT,
             STAGE_UNKNOWN
         }
 
@@ -136,15 +140,34 @@ namespace LabMan_WPF_VialSimulator_Naive
                 OnPropertyChanged("DispenseStation");
             }
         }
+        private bool _IsRunning;
         public bool IsRunning
         {
-            get;
+            get
+            {
+                return _IsRunning;
+            }
+
+            set
+            {
+                if (value == _IsRunning)
+                    return;
+
+                _IsRunning = value;
+                OnPropertyChanged("IsRunning");
+            }
         }
         #endregion
 
         #region Private Properties
         // Has a stop command been received
         private bool _StopReceived = false;
+
+        // Has a stop command been executed
+        private bool _StopInitiated = false;
+
+        // Used when a new input vial is needed
+        private bool _RefreshInput = false;
 
         private SimulationState _CurrentState;
         private SimulationState _FutureState;
@@ -183,15 +206,19 @@ namespace LabMan_WPF_VialSimulator_Naive
                 RunSimulationStateMachine();
             }
 
-            if (false == _StopReceived)
+            if (true == _StopReceived && false == _StopInitiated)
+            {
+                _StopInitiated = true;
+
+                 // Stopping
+                RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, "\nSTOPPING on completion of current operation" });
+            }
+
+            if (true == _IsRunning)
             {
                 // If not trying to stop, start again
                 _SimulationTimer.Enabled = true;
                 _SimulationTimer.Start();
-            }
-            else
-            {
-
             }
         }
 
@@ -214,38 +241,110 @@ namespace LabMan_WPF_VialSimulator_Naive
             }
         }
 
-        private void DoProceed(string message)
+        private void DoProceed()
         {
             UpdateTopState();
-            RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, message });
         }
+
+        /// <summary>
+        /// Received when the arm has completed a movement
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="proceed"></param>
+        /// <param name="message"></param>
         private void Arm_OnArmUpdateEventReceived(ViewModel_Arm sender, bool proceed, string message)
         {
             if (proceed)
             {
-                DoProceed(message);
+                DoProceed();
             }
+            RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, message });
         }
 
+        /// <summary>
+        /// Received then the grip has completed a movement
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="proceed"></param>
+        /// <param name="message"></param>
+        private void Arm_OnGripUpdateEventReceived(ViewModel_Arm sender, bool proceed, int index, Model_Arm.GripPosition grip, Model_Rack.RackPurpose rack, string message)
+        {
+            if (proceed)
+            {
+                if(SimulationState.STAGE1_PICK_UP_INPUT_VIAL == _CurrentState)
+                {
+                    // Belt and braces
+                    if (Model_Rack.RackPurpose.INPUT == rack)
+                    {
+                        // Just picked up from input so set current input ID
+                        _InputRack.SetCurrentID(index);
+                        _RefreshInput = false;
+                    }
+                }
+
+                if(SimulationState.STAGE6_PICK_UP_OUTPUT_VIAL == _CurrentState)
+                {
+                    // Belt and braces
+                    if(Model_Rack.RackPurpose.OUTPUT == rack)
+                    {
+                        // Just picked up from output so set current output ID
+                        _OutputRack.SetCurrentID(index);
+                    }
+                }
+
+                if (SimulationState.STAGE10_PLACE_VIAL_AT_OUTPUT == _CurrentState)
+                {
+                    // Belt and braces
+                    if (Model_Rack.RackPurpose.OUTPUT == rack)
+                    {
+                        _OutputRack.SetCurrentID(index + 1);
+                    }
+                }
+
+                DoProceed();
+            }
+            RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, message });
+        }
+
+        /// <summary>
+        /// Received when the grind station has completed
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="proceed"></param>
+        /// <param name="message"></param>
         private void GrindStation_OnGrindUpdateEventReceived(ViewModel_GrindStation sender, bool proceed, string message)
         {
             if (proceed)
             {
                 // Update vial to be ground
-                _InputRack.GroundVial();
+                _InputRack.SetCurrentVialFull();
 
-                DoProceed(message);
+                DoProceed();
             }
+            RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, message });
         }
+        /// <summary>
+        /// Received when the Dispenser has dispensed
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="proceed"></param>
+        /// <param name="message"></param>
         private void DispenseStation_OnDispenseUpdateEventReceived(ViewModel_DispenseStation sender, bool proceed, string message)
         {
             if (proceed)
             {
+                // Is this the last fine material in the input vial?
+                if (0 == ((_OutputRack.IDInUse+1) % _SimulationParameters.OutputDivisionFactor))
+                {
+                    _InputRack.SetCurrentVialEmpty();
+                }
+                    
                 // Update new vial of material
-                _OutputRack.GroundVial();
+                _OutputRack.SetCurrentVialFull();
 
-                DoProceed(message);
+                DoProceed();
             }
+            RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, message });
         }
         #endregion
 
@@ -257,6 +356,30 @@ namespace LabMan_WPF_VialSimulator_Naive
             _AbortTicks = -1;
         }
 
+        private SimulationState CalculateNextStep()
+        {
+            SimulationState nextStep = _CurrentState;
+
+            // At this point a full output vial is being moved to the output rack.
+            // Decide if another output vial is to be filled, i.e. the input vial still has material, or
+            // grab another input vial to grind.
+            if (SimulationState.STAGE10_PLACE_VIAL_AT_OUTPUT == _CurrentState)
+            {
+                if(_InputRack.IsCurrentVialEmpty())
+                {
+                    _InputRack.SetCurrentID(InputRack.IDInUse + 1);
+                    _RefreshInput = true;
+                    nextStep = SimulationState.STAGE7_MOVE_FROM_OUTPUT_TO_DISPENSE;
+                }
+                else
+                {
+                    // The input vial can fill more output vials
+                    nextStep = SimulationState.STAGE6_PICK_UP_OUTPUT_VIAL;
+                }
+            }
+
+            return nextStep;
+        }
 
         /// <summary>
         /// The state machine handler. Will be called every _SimulationTimer.Interval. Added semaphore
@@ -285,57 +408,94 @@ namespace LabMan_WPF_VialSimulator_Naive
             }
             else
             {
-                // Only work through the state transitions if not already waiting on a transition
-                if (false == _StopReceived && _FutureState == SimulationState.STAGE_UNKNOWN)
+                if (false == _StopInitiated)
                 {
-                    switch (_CurrentState)
+                    // Only work through the state transitions if not already waiting on a transition and not stopping
+                    if (_FutureState == SimulationState.STAGE_UNKNOWN)
                     {
-                        case SimulationState.STAGE1_PICK_UP_INPUT_VIAL:
-                            _AbortTicks = _Arm.GrabVialFromCurrentRack(_InputRack.IDInUse);
-                            _FutureState = SimulationState.STAGE2_MOVE_FROM_INPUT_TO_GRIND;
-                            break;
+                        switch (_CurrentState)
+                        {
+                            case SimulationState.STAGE1_PICK_UP_INPUT_VIAL:
+                                _AbortTicks = _Arm.GrabVialFromRack(_InputRack.IDInUse, _InputRack.Position);
+                                _FutureState = SimulationState.STAGE2_MOVE_FROM_INPUT_TO_GRIND;
+                                break;
 
-                        case SimulationState.STAGE2_MOVE_FROM_INPUT_TO_GRIND:
-                            _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.GRIND_STATION);
-                            _FutureState = SimulationState.STAGE3_GRIND_INPUT;
-                            break;
+                            case SimulationState.STAGE2_MOVE_FROM_INPUT_TO_GRIND:
+                                _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.GRIND_STATION);
+                                _FutureState = SimulationState.STAGE3_GRIND_INPUT;
+                                break;
 
-                        case SimulationState.STAGE3_GRIND_INPUT:
-                            _AbortTicks = _GrindStation.GrindVial(_InputRack.IDInUse);
-                            _FutureState = SimulationState.STAGE4_MOVE_FROM_GRIND_TO_DISPENSE;
-                            break;
+                            case SimulationState.STAGE3_GRIND_INPUT:
+                                _AbortTicks = _GrindStation.GrindVial(_InputRack.IDInUse);
+                                _FutureState = SimulationState.STAGE4_MOVE_FROM_GRIND_TO_DISPENSE;
+                                break;
 
-                        case SimulationState.STAGE4_MOVE_FROM_GRIND_TO_DISPENSE:
-                            _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.DISPENSE_STATION);
-                            _FutureState = SimulationState.STAGE5_MOVE_FROM_DISPENSE_TO_OUTPUT;
-                            break;
+                            case SimulationState.STAGE4_MOVE_FROM_GRIND_TO_DISPENSE:
+                                _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.DISPENSE_STATION);
+                                _FutureState = SimulationState.STAGE5_MOVE_FROM_DISPENSE_TO_OUTPUT;
+                                break;
 
-                        case SimulationState.STAGE5_MOVE_FROM_DISPENSE_TO_OUTPUT:
-                            _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.OUTPUT_RACK);
-                            _FutureState = SimulationState.STAGE6_MOVE_FROM_OUTPUT_TO_DISPENSE;
-                            break;
+                            case SimulationState.STAGE5_MOVE_FROM_DISPENSE_TO_OUTPUT:
+                                _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.OUTPUT_RACK);
+                                _FutureState = SimulationState.STAGE6_PICK_UP_OUTPUT_VIAL;
+                                break;
 
-                        case SimulationState.STAGE6_MOVE_FROM_OUTPUT_TO_DISPENSE:
-                            _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.DISPENSE_STATION);
-                            _FutureState = SimulationState.STAGE7_TRANSFER_FROM_INPUT_TO_OUTPUT;
-                            break;
+                            case SimulationState.STAGE6_PICK_UP_OUTPUT_VIAL:
+                                _AbortTicks = _Arm.GrabVialFromRack(_OutputRack.IDInUse, _OutputRack.Position);
+                                _FutureState = SimulationState.STAGE7_MOVE_FROM_OUTPUT_TO_DISPENSE;
+                                break;
 
-                        case SimulationState.STAGE7_TRANSFER_FROM_INPUT_TO_OUTPUT:
-                            _AbortTicks = _DispenseStation.Dispense(_InputRack.IDInUse, _OutputRack.IDInUse,
-                                _SimulationParameters.TargetOutputVialWeight_mg, _SimulationParameters.DispenserFlowRate_mgs);
-                            _FutureState = SimulationState.STAGE8_TRANSFER_FROM_DISPENSE_TO_OUTPUT;
-                            break;
+                            case SimulationState.STAGE7_MOVE_FROM_OUTPUT_TO_DISPENSE:
+                                _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.DISPENSE_STATION);
+                                if (false == _RefreshInput)
+                                {
+                                    _FutureState = SimulationState.STAGE8_DISPENSE_INPUT_TO_OUTPUT;
+                                }
+                                else
+                                {
+                                    _FutureState = SimulationState.STAGE11_MOVE_FROM_DISPENSE_TO_INPUT;
+                                }
+                                break;
 
-                        case SimulationState.STAGE8_TRANSFER_FROM_DISPENSE_TO_OUTPUT:
-                            _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.OUTPUT_RACK);
-                            _FutureState = SimulationState.STAGE9_TRANSFER_FROM_OUTPUT_TO_DISPENSE;
-                            break;
+                            case SimulationState.STAGE8_DISPENSE_INPUT_TO_OUTPUT:
+                                _AbortTicks = _DispenseStation.Dispense(_InputRack.IDInUse, _OutputRack.IDInUse,
+                                    _SimulationParameters.TargetOutputVialWeight_mg, _SimulationParameters.DispenserFlowRate_mgs);
+                                _FutureState = SimulationState.STAGE9_TRANSFER_FROM_DISPENSE_TO_OUTPUT;
+                                break;
+
+                            case SimulationState.STAGE9_TRANSFER_FROM_DISPENSE_TO_OUTPUT:
+                                _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.OUTPUT_RACK);
+                                _FutureState = SimulationState.STAGE10_PLACE_VIAL_AT_OUTPUT;
+                                break;
+
+                            case SimulationState.STAGE10_PLACE_VIAL_AT_OUTPUT:
+                                _AbortTicks = _Arm.ReleseVialToRack(_OutputRack.IDInUse, _OutputRack.Position);
+                                _FutureState = CalculateNextStep();
+                                break;
+
+                            case SimulationState.STAGE11_MOVE_FROM_DISPENSE_TO_INPUT:
+                                _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.INPUT_RACK);
+                                _FutureState = SimulationState.STAGE1_PICK_UP_INPUT_VIAL;
+                                break;
+                        }
+
+                        // Have new state
+                        if (_AbortTicks > 0)
+                        {
+                            _AbortTicks = (int)(_AbortTicks * 1.5);
+                        }
                     }
-
-                    // Have new state
-                    if(_AbortTicks > 0)
+                }
+                else
+                {
+                    // _AbortTicks is used as an indication of a process currently running in the back ground.
+                    // Only stop when it is safe to do so
+                    if (_AbortTicks < 0)
                     {
-                        _AbortTicks = (int)(_AbortTicks * 1.5);
+                        _IsRunning = false;
+                        _StopReceived = false;
+                        _StopInitiated = false;
+                        RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, string.Format("\nSTOPPED!") });
                     }
                 }
                 
@@ -359,6 +519,7 @@ namespace LabMan_WPF_VialSimulator_Naive
 
             // Tie in events when parts of the system have completed their job
             _Arm.OnArmUpdateEvent += new ViewModel_Arm.OnArmUpdateEventHandler(Arm_OnArmUpdateEventReceived);
+            _Arm.OnGripUpdateEvent += new ViewModel_Arm.OnGripUpdateEventHandler(Arm_OnGripUpdateEventReceived);
             _GrindStation.OnGrindUpdateEvent += new ViewModel_GrindStation.OnGrindUpdateEventHandler(GrindStation_OnGrindUpdateEventReceived);
             _DispenseStation.OnDispenseUpdateEvent += new ViewModel_DispenseStation.OnDispenseUpdateEventHandler(DispenseStation_OnDispenseUpdateEventReceived);
 
@@ -367,6 +528,8 @@ namespace LabMan_WPF_VialSimulator_Naive
             _SimulationTimer.Stop();
             _SimulationTimer.Interval = 1;
             _SimulationTimer.Start();
+
+            IsRunning = true;
         }
         #endregion
     }
