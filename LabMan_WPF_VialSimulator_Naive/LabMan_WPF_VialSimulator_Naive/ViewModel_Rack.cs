@@ -51,9 +51,12 @@ namespace LabMan_WPF_VialSimulator_Naive
                 OnPropertyChanged("Vials");
             }
         }
-
-        public uint IndexInUse = 0;
+        public int IDInUse = 0;
         #endregion
+
+
+        private int _CurrentRow = 0;
+        private int _CurrentCol = 0;
 
         #region Constructor
         public ViewModel_Rack(List<List<ViewModel_Vial>> vials, Model_Rack.RackPurpose position)
@@ -66,8 +69,20 @@ namespace LabMan_WPF_VialSimulator_Naive
         #region Public Methods
         public void ResetRackVars()
         {
-            IndexInUse = 0;
+            _CurrentRow = 0;
+            _CurrentCol = 0;
+            IDInUse = GetCurrentID();
+        }
+
+        public void GroundVial()
+        {
+            _Vials[_CurrentRow][_CurrentCol].State = Model_Vial.VialState.FINE;
         }
         #endregion
+
+        private int GetCurrentID()
+        {
+            return _Vials[_CurrentRow][_CurrentCol].ID;
+        }
     }
 }

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace LabMan_WPF_VialSimulator_Naive
+﻿namespace LabMan_WPF_VialSimulator_Naive
 {
     public static class Model_Arm
     {

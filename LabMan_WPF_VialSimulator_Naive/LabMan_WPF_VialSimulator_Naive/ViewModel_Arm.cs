@@ -327,7 +327,7 @@ namespace LabMan_WPF_VialSimulator_Naive
             return ElapsingTime;
         }
 
-        public int GrabVialFromCurrentRack(uint index)
+        public int GrabVialFromCurrentRack(int index)
         {
             int ElapsingTime = -1;
 

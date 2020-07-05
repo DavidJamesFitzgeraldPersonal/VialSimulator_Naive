@@ -7,9 +7,14 @@ namespace LabMan_WPF_VialSimulator_Naive
     {
         private enum SimulationState
         {
+            STAGE0_INIT,
             STAGE1_PICK_UP_INPUT_VIAL,
             STAGE2_MOVE_FROM_INPUT_TO_GRIND,
             STAGE3_GRIND_INPUT,
+            STAGE4_MOVE_FROM_GRIND_TO_DISPENSE,
+            STAGE5_MOVE_FROM_DISPENSE_TO_OUTPUT,
+            STAGE6_MOVE_FROM_OUTPUT_TO_DISPENSE,
+            STAGE7_TRANSFER_FROM_INPUT_TO_OUTPUT,
             STAGE_UNKNOWN
         }
 
@@ -96,6 +101,23 @@ namespace LabMan_WPF_VialSimulator_Naive
             }
         }
 
+        private ViewModel_GrindStation _GrindStation;
+        public ViewModel_GrindStation GrindStation
+        {
+            get
+            {
+                return _GrindStation;
+            }
+            set
+            {
+                if (value == _GrindStation)
+                    return;
+
+                _GrindStation = value;
+                OnPropertyChanged("GrindStation");
+            }
+        }
+
         public bool IsRunning
         {
             get;
@@ -120,6 +142,9 @@ namespace LabMan_WPF_VialSimulator_Naive
             SimulationParameters = new ViewModel_SimulationParameters(96,288,3,1,10,0);
 
             _SimulationTimer.Elapsed += _Simulationtimer_Elapsed;
+
+            Arm = new ViewModel_Arm();
+            GrindStation = new ViewModel_GrindStation();
         }
         #endregion
 
@@ -131,7 +156,22 @@ namespace LabMan_WPF_VialSimulator_Naive
         /// <param name="e"></param>
         private void _Simulationtimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
-            RunSimulationStateMachine();
+            _SimulationTimer.Stop();
+
+            if (false == _semaphore)
+            {
+                RunSimulationStateMachine();
+            }
+
+            if (false == _StopReceived)
+            {
+                // If not trying to stop, start again
+                _SimulationTimer.Start();
+            }
+            else
+            {
+
+            }
         }
 
         private void RaiseEventOnTopLevel(Delegate theEvent, object[] args)
@@ -153,14 +193,27 @@ namespace LabMan_WPF_VialSimulator_Naive
             }
         }
 
+        private void DoProceed(string message)
+        {
+            UpdateTopState();
+            RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, message });
+        }
         private void Arm_OnArmUpdateEventReceived(ViewModel_Arm sender, bool proceed, string message)
         {
-            if(true == proceed)
+            if (proceed)
             {
-                UpdateTopState();
+                DoProceed(message);
             }
+        }
 
-            RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, message });
+        private void GrindStation_OnGrindUpdateEventReceived(ViewModel_GrindStation sender, bool proceed, string message)
+        {
+            if (proceed)
+            {
+                // Update vial to be ground
+                _InputRack.GroundVial();
+                DoProceed(message);
+            }
         }
         #endregion
 
@@ -169,28 +222,44 @@ namespace LabMan_WPF_VialSimulator_Naive
         {
             _CurrentState = _FutureState;
             _FutureState = SimulationState.STAGE_UNKNOWN;
-            _AbortTicks = 0;
+            _AbortTicks = -1;
         }
+
+
+        /// <summary>
+        /// The state machine handler. Will be called every _SimulationTimer.Interval. Added semaphore
+        /// accesss due to strange behaviour of _AbortTicks. Seems far too long.
+        /// </summary>
+        static bool _semaphore = false;
         private void RunSimulationStateMachine()
         {
-            // If there is a future state then decrement abort ticks, if this ever reaches 0
+            _semaphore = true;
+            // If there is an abort time then decrement, if this ever reaches 0
             //then something has gone drastically wrong!
-            if (_FutureState != SimulationState.STAGE_UNKNOWN)
+            // TODO there is something wrong here - The Abort Timer seems to take 10x longer than it should
+            if (_AbortTicks > 0)
             {
-                if (_AbortTicks > 0)
+                _AbortTicks = _AbortTicks - (int)(_SimulationTimer.Interval);
+                if(_AbortTicks < 0)
                 {
-                    _AbortTicks = _AbortTicks - (int)(_SimulationTimer.Interval);
+                    _AbortTicks = 0;
                 }
             }
 
-            if (_AbortTicks >= 0)
+            if(_AbortTicks == 0)
             {
+                StopSimulation();
+                RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, string.Format("\nERROR moving from state {0} to state {1}", _CurrentState, _FutureState) });
+            }
+            else
+            {
+                // Only work through the state transitions if not already waiting on a transition
                 if (false == _StopReceived && _FutureState == SimulationState.STAGE_UNKNOWN)
                 {
                     switch (_CurrentState)
                     {
                         case SimulationState.STAGE1_PICK_UP_INPUT_VIAL:
-                            _AbortTicks = _Arm.GrabVialFromCurrentRack(InputRack.IndexInUse);
+                            _AbortTicks = _Arm.GrabVialFromCurrentRack(_InputRack.IDInUse);
                             _FutureState = SimulationState.STAGE2_MOVE_FROM_INPUT_TO_GRIND;
                             break;
 
@@ -198,23 +267,35 @@ namespace LabMan_WPF_VialSimulator_Naive
                             _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.GRIND_STATION);
                             _FutureState = SimulationState.STAGE3_GRIND_INPUT;
                             break;
-                    }
 
-                    // Add some error margin (25%) to the abort ticks!
-                    if (_FutureState != SimulationState.STAGE_UNKNOWN)
-                    {
-                        _AbortTicks = (int)(_AbortTicks * 1.25);
+                        case SimulationState.STAGE3_GRIND_INPUT:
+                            _AbortTicks = _GrindStation.GrindVial(_InputRack.IDInUse);
+                            _FutureState = SimulationState.STAGE4_MOVE_FROM_GRIND_TO_DISPENSE;
+                            break;
+
+                        case SimulationState.STAGE4_MOVE_FROM_GRIND_TO_DISPENSE:
+                            _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.DISPENSE_STATION);
+                            _FutureState = SimulationState.STAGE5_MOVE_FROM_DISPENSE_TO_OUTPUT;
+                            break;
+
+                        case SimulationState.STAGE5_MOVE_FROM_DISPENSE_TO_OUTPUT:
+                            _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.OUTPUT_RACK);
+                            _FutureState = SimulationState.STAGE6_MOVE_FROM_OUTPUT_TO_DISPENSE;
+                            break;
+
+                        case SimulationState.STAGE6_MOVE_FROM_OUTPUT_TO_DISPENSE:
+                            _AbortTicks = _Arm.MoveArmToNewPosition(Model_Arm.ArmPosition.DISPENSE_STATION);
+                            _FutureState = SimulationState.STAGE7_TRANSFER_FROM_INPUT_TO_OUTPUT;
+                            break;
+
+                        case SimulationState.STAGE7_TRANSFER_FROM_INPUT_TO_OUTPUT:
+                            break;
+
                     }
                 }
-                else
-                {
-
-                }
+                
             }
-            else
-            {
-                RaiseEventOnTopLevel(OnSimulationUpdateEvent, new object[] { this, string.Format("\nERROR moving from state {0} to state {1}", _CurrentState, _FutureState) });
-            }
+            _semaphore = false;
         }
         #endregion
 
@@ -225,10 +306,6 @@ namespace LabMan_WPF_VialSimulator_Naive
         }
         public void BeginSimulation()
         {
-            _SimulationTimer.Stop();
-            _SimulationTimer.Interval = 1;
-            _SimulationTimer.Start();
-
             _CurrentState = SimulationState.STAGE1_PICK_UP_INPUT_VIAL;
             _FutureState = SimulationState.STAGE_UNKNOWN;
 
@@ -236,6 +313,13 @@ namespace LabMan_WPF_VialSimulator_Naive
             OutputRack.ResetRackVars();
 
             _Arm.OnArmUpdateEvent += new ViewModel_Arm.OnArmUpdateEventHandler(Arm_OnArmUpdateEventReceived);
+            _GrindStation.OnGrindUpdateEvent += new ViewModel_GrindStation.OnGrindUpdateEventHandler(GrindStation_OnGrindUpdateEventReceived);
+
+            _AbortTicks = -1;
+
+            _SimulationTimer.Stop();
+            _SimulationTimer.Interval = 1;
+            _SimulationTimer.Start();
         }
         #endregion
     }
